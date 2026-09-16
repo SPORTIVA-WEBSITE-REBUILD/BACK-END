@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.vercel/
+
+# Environment — never commit real credentials
+.env
+.env.local
+.env.*.local
+
+# Local state
+.import-state.json
+*.log
+coverage/
+
+# macOS
+.DS_Store
