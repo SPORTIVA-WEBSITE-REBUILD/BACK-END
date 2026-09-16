@@ -1,0 +1,426 @@
+import crypto from 'node:crypto';
+import SiteSettings from '../models/SiteSettings.js';
+import Navigation from '../models/Navigation.js';
+import Page from '../models/Page.js';
+import Service from '../models/Service.js';
+import CaseModel from '../models/Case.js';
+import Article from '../models/Article.js';
+import Lawyer from '../models/Lawyer.js';
+import Vacancy from '../models/Vacancy.js';
+import GalleryItem from '../models/GalleryItem.js';
+import Enquiry from '../models/Enquiry.js';
+import ApiError from '../lib/ApiError.js';
+import asyncHandler from '../lib/asyncHandler.js';
+import { ok, created, publicCache } from '../lib/respond.js';
+import env from '../config/env.js';
+
+const PUBLISHED = { status: 'published' };
+const MEDIA_FIELDS = 'secureUrl width height alt caption format';
+
+/**
+ * A slug the administrator has retired still resolves, but the client is told
+ * the canonical one so it can issue a redirect instead of serving duplicate
+ * URLs to search engines (CLAUDE.md section 18).
+ */
+function canonicalRedirect(doc, requested) {
+  return doc.slug !== requested ? { redirectTo: doc.slug } : {};
+}
+
+/* --------------------------- shell / settings --------------------------- */
+
+// One call for everything the layout needs, so the shell costs one round trip
+// rather than three (CLAUDE.md section 11).
+export const getSettings = asyncHandler(async (req, res) => {
+  const [settings, navs] = await Promise.all([
+    SiteSettings.getSingleton().then((d) => d.populate([
+      { path: 'logo', select: MEDIA_FIELDS },
+      { path: 'favicon', select: MEDIA_FIELDS },
+      { path: 'seoDefaults.ogImage', select: MEDIA_FIELDS },
+    ])),
+    Navigation.find().lean(),
+  ]);
+
+  publicCache(res, 300);
+  return ok(res, {
+    settings,
+    navigation: {
+      header: navs.find((n) => n.location === 'header')?.items || [],
+      footer: navs.find((n) => n.location === 'footer')?.items || [],
+    },
+  });
+});
+
+/* --------------------------------- pages -------------------------------- */
+
+export const getPage = asyncHandler(async (req, res) => {
+  const page = await Page.findBySlug(req.params.slug, PUBLISHED)
+    .populate([
+      { path: 'sections.image', select: MEDIA_FIELDS },
+      { path: 'sections.items.image', select: MEDIA_FIELDS },
+      { path: 'seo.ogImage', select: MEDIA_FIELDS },
+    ])
+    .lean();
+  if (!page) throw ApiError.notFound('Page not found');
+
+  publicCache(res, 300);
+  return ok(res, page, canonicalRedirect(page, req.params.slug));
+});
+
+/* ------------------------------- services ------------------------------- */
+
+export const listServices = asyncHandler(async (req, res) => {
+  const services = await Service.find(PUBLISHED)
+    .select('title slug icon summary image order')
+    .populate({ path: 'image', select: MEDIA_FIELDS })
+    .sort('order title')
+    .lean();
+
+  publicCache(res, 600);
+  return ok(res, services);
+});
+
+export const getService = asyncHandler(async (req, res) => {
+  const service = await Service.findBySlug(req.params.slug, PUBLISHED)
+    .populate([
+      { path: 'image', select: MEDIA_FIELDS },
+      { path: 'seo.ogImage', select: MEDIA_FIELDS },
+    ])
+    .lean();
+  if (!service) throw ApiError.notFound('Service not found');
+
+  publicCache(res, 600);
+  return ok(res, service, canonicalRedirect(service, req.params.slug));
+});
+
+/* -------------------------------- cases --------------------------------- */
+
+export const listCases = asyncHandler(async (req, res) => {
+  const { forum, year, party, outcome, q, page = 1, limit = 12 } = req.validatedQuery || req.query;
+
+  const filter = { ...PUBLISHED };
+  if (forum) filter.forum = forum;
+  if (year) filter.year = Number(year);
+  if (party) filter.partyRepresented = party;
+  if (outcome) filter.outcome = outcome;
+  if (q) {
+    const safe = String(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const rx = new RegExp(safe, 'i');
+    filter.$or = [{ title: rx }, { summary: rx }];
+  }
+
+  const skip = (Number(page) - 1) * Number(limit);
+  const [items, total] = await Promise.all([
+    CaseModel.find(filter)
+      // Summary projection only — the body is never sent to a list view.
+      .select('title slug forum year partyRepresented outcome summary featuredImage publishedAt')
+      .populate({ path: 'featuredImage', select: MEDIA_FIELDS })
+      .sort('-year -publishedAt')
+      .skip(skip)
+      .limit(Number(limit))
+      .lean(),
+    CaseModel.countDocuments(filter),
+  ]);
+
+  publicCache(res, 300);
+  return ok(res, items, {
+    page: Number(page),
+    limit: Number(limit),
+    total,
+    pages: Math.ceil(total / Number(limit)) || 1,
+  });
+});
+
+/** Powers the archive's filter controls without downloading the archive. */
+export const caseFilters = asyncHandler(async (req, res) => {
+  const [forums, years, parties, outcomes] = await Promise.all([
+    CaseModel.distinct('forum', PUBLISHED),
+    CaseModel.distinct('year', PUBLISHED),
+    CaseModel.distinct('partyRepresented', PUBLISHED),
+    CaseModel.distinct('outcome', PUBLISHED),
+  ]);
+
+  publicCache(res, 900);
+  return ok(res, {
+    forums: forums.sort(),
+    years: years.sort((a, b) => b - a),
+    parties: parties.sort(),
+    outcomes: outcomes.sort(),
+  });
+});
+
+export const getCase = asyncHandler(async (req, res) => {
+  const found = await CaseModel.findBySlug(req.params.slug, PUBLISHED)
+    .populate([
+      { path: 'featuredImage', select: MEDIA_FIELDS },
+      { path: 'practiceArea', select: 'title slug' },
+      { path: 'seo.ogImage', select: MEDIA_FIELDS },
+    ])
+    .lean();
+  if (!found) throw ApiError.notFound('Case not found');
+
+  publicCache(res, 600);
+  return ok(res, found, canonicalRedirect(found, req.params.slug));
+});
+
+/* ------------------------------- articles ------------------------------- */
+
+export const listArticles = asyncHandler(async (req, res) => {
+  const { category, tag, q, page = 1, limit = 9 } = req.validatedQuery || req.query;
+
+  const filter = { ...PUBLISHED };
+  if (tag) filter.tags = tag;
+  if (q) {
+    const safe = String(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const rx = new RegExp(safe, 'i');
+    filter.$or = [{ title: rx }, { excerpt: rx }];
+  }
+  if (category) {
+    const { default: Category } = await import('../models/Category.js');
+    const cat = await Category.findOne({ slug: category }).select('_id').lean();
+    if (!cat) return ok(res, [], { page: 1, limit: Number(limit), total: 0, pages: 1 });
+    filter.category = cat._id;
+  }
+
+  const skip = (Number(page) - 1) * Number(limit);
+  const [items, total] = await Promise.all([
+    Article.find(filter)
+      .select('title slug excerpt featuredImage author category tags publishedAt readingMinutes')
+      .populate([
+        { path: 'featuredImage', select: MEDIA_FIELDS },
+        { path: 'author', select: 'name slug role photo' },
+        { path: 'category', select: 'name slug' },
+      ])
+      .sort('-publishedAt')
+      .skip(skip)
+      .limit(Number(limit))
+      .lean(),
+    Article.countDocuments(filter),
+  ]);
+
+  publicCache(res, 300);
+  return ok(res, items, {
+    page: Number(page),
+    limit: Number(limit),
+    total,
+    pages: Math.ceil(total / Number(limit)) || 1,
+  });
+});
+
+export const getArticle = asyncHandler(async (req, res) => {
+  const article = await Article.findBySlug(req.params.slug, PUBLISHED)
+    .populate([
+      { path: 'featuredImage', select: MEDIA_FIELDS },
+      { path: 'author', select: 'name slug role photo bio' },
+      { path: 'category', select: 'name slug' },
+      { path: 'seo.ogImage', select: MEDIA_FIELDS },
+    ])
+    .lean();
+  if (!article) throw ApiError.notFound('Article not found');
+
+  // Three light related articles, fetched in the same request rather than
+  // leaving the client to make a second round trip.
+  const related = await Article.find({
+    ...PUBLISHED,
+    _id: { $ne: article._id },
+    ...(article.category ? { category: article.category._id } : {}),
+  })
+    .select('title slug excerpt featuredImage publishedAt')
+    .populate({ path: 'featuredImage', select: MEDIA_FIELDS })
+    .sort('-publishedAt')
+    .limit(3)
+    .lean();
+
+  publicCache(res, 600);
+  return ok(res, { ...article, related }, canonicalRedirect(article, req.params.slug));
+});
+
+/* -------------------------------- lawyers ------------------------------- */
+
+export const listLawyers = asyncHandler(async (req, res) => {
+  const lawyers = await Lawyer.find(PUBLISHED)
+    .select('name slug role photo order socials')
+    .populate({ path: 'photo', select: MEDIA_FIELDS })
+    .sort('order name')
+    .lean();
+
+  publicCache(res, 600);
+  return ok(res, lawyers);
+});
+
+export const getLawyer = asyncHandler(async (req, res) => {
+  const lawyer = await Lawyer.findBySlug(req.params.slug, PUBLISHED)
+    .populate([
+      { path: 'photo', select: MEDIA_FIELDS },
+      { path: 'practiceAreas', select: 'title slug' },
+      { path: 'seo.ogImage', select: MEDIA_FIELDS },
+    ])
+    .lean();
+  if (!lawyer) throw ApiError.notFound('Lawyer not found');
+
+  publicCache(res, 600);
+  return ok(res, lawyer, canonicalRedirect(lawyer, req.params.slug));
+});
+
+/* ------------------------------- gallery -------------------------------- */
+
+export const listGallery = asyncHandler(async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 24, 60);
+
+  const items = await GalleryItem.find(PUBLISHED)
+    .select('title description image location takenAt order')
+    .populate({ path: 'image', select: MEDIA_FIELDS })
+    .sort('order -createdAt')
+    .limit(limit)
+    .lean();
+
+  // An entry whose image was deleted from the library would render an empty
+  // tile, so it is dropped rather than shown.
+  publicCache(res, 300);
+  return ok(res, items.filter((item) => item.image));
+});
+
+/* ------------------------------- careers -------------------------------- */
+
+export const listVacancies = asyncHandler(async (req, res) => {
+  // A vacancy past its closing date drops out of the listing but keeps its own
+  // page working, so links already shared do not break.
+  const open = {
+    ...PUBLISHED,
+    $or: [{ closingDate: { $exists: false } }, { closingDate: null }, { closingDate: { $gte: new Date() } }],
+  };
+
+  const vacancies = await Vacancy.find(open)
+    .select('title slug department location workplaceType employmentType summary salaryRange closingDate order publishedAt')
+    .sort('order -publishedAt')
+    .lean();
+
+  publicCache(res, 300);
+  return ok(res, vacancies);
+});
+
+export const getVacancy = asyncHandler(async (req, res) => {
+  const vacancy = await Vacancy.findBySlug(req.params.slug, PUBLISHED)
+    .populate({ path: 'seo.ogImage', select: MEDIA_FIELDS })
+    .lean({ virtuals: true });
+  if (!vacancy) throw ApiError.notFound('Vacancy not found');
+
+  // The virtual does not survive .lean(), so it is derived here for the client.
+  const isClosed = Boolean(vacancy.closingDate && new Date(vacancy.closingDate).getTime() < Date.now());
+
+  publicCache(res, 300);
+  return ok(res, { ...vacancy, isClosed }, canonicalRedirect(vacancy, req.params.slug));
+});
+
+/* ------------------------------- enquiries ------------------------------ */
+
+export const createEnquiry = asyncHandler(async (req, res) => {
+  const { website, ...payload } = req.body;
+
+  // Honeypot. Respond exactly as for a success so a bot learns nothing.
+  if (website) return created(res, { received: true });
+
+  await Enquiry.create({
+    ...payload,
+    ipHash: crypto
+      .createHash('sha256')
+      .update(`${req.ip}:${env.accessSecret}`)
+      .digest('hex'),
+    userAgent: (req.get('user-agent') || '').slice(0, 400),
+  });
+
+  return created(res, { received: true });
+});
+
+/* -------------------------------- sitemap ------------------------------- */
+
+const SITEMAP_SECTIONS = [
+  ['services', '/services', 0.7],
+  ['cases', '/record', 0.8],
+  ['articles', '/insights', 0.8],
+  ['lawyers', '/lawyers', 0.6],
+  ['vacancies', '/careers', 0.6],
+];
+
+const SITEMAP_STATIC = [
+  ['/', 1.0, 'weekly'],
+  ['/services', 0.9, 'monthly'],
+  ['/record', 0.9, 'weekly'],
+  ['/insights', 0.9, 'weekly'],
+  ['/about', 0.7, 'monthly'],
+  ['/careers', 0.6, 'weekly'],
+  ['/contact', 0.7, 'yearly'],
+  ['/privacy-policy', 0.3, 'yearly'],
+];
+
+function xmlEscape(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+/**
+ * Serves sitemap.xml directly, so publishing an article updates it within the
+ * cache window instead of waiting for the next frontend deploy. The public site
+ * rewrites /sitemap.xml here.
+ */
+export const sitemapXml = asyncHandler(async (req, res) => {
+  const site = (process.env.PUBLIC_SITE_URL || env.publicSiteUrl).replace(/\/$/, '');
+
+  const [services, cases, articles, lawyers, vacancies] = await Promise.all([
+    Service.find(PUBLISHED).select('slug updatedAt').lean(),
+    CaseModel.find(PUBLISHED).select('slug updatedAt').lean(),
+    Article.find(PUBLISHED).select('slug updatedAt').lean(),
+    Lawyer.find(PUBLISHED).select('slug updatedAt').lean(),
+    // A closed role is not a page worth submitting for crawling.
+    Vacancy.find({
+      ...PUBLISHED,
+      $or: [{ closingDate: { $exists: false } }, { closingDate: null }, { closingDate: { $gte: new Date() } }],
+    }).select('slug updatedAt').lean(),
+  ]);
+  const bySection = { services, cases, articles, lawyers, vacancies };
+
+  const entry = (loc, { lastmod, priority, changefreq }) => [
+    '  <url>',
+    `    <loc>${xmlEscape(site + loc)}</loc>`,
+    lastmod ? `    <lastmod>${new Date(lastmod).toISOString().slice(0, 10)}</lastmod>` : null,
+    changefreq ? `    <changefreq>${changefreq}</changefreq>` : null,
+    `    <priority>${priority}</priority>`,
+    '  </url>',
+  ].filter(Boolean).join('\n');
+
+  const urls = [
+    ...SITEMAP_STATIC.map(([loc, priority, changefreq]) => entry(loc, { priority, changefreq })),
+    ...SITEMAP_SECTIONS.flatMap(([key, prefix, priority]) => (bySection[key] || [])
+      .map((doc) => entry(`${prefix}/${doc.slug}`, { lastmod: doc.updatedAt, priority, changefreq: 'monthly' }))),
+  ];
+
+  publicCache(res, 900);
+  res.type('application/xml').send(
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`,
+  );
+});
+
+/** robots.txt, pointing at the sitemap on the public domain. */
+export const robotsTxt = asyncHandler(async (req, res) => {
+  const site = (process.env.PUBLIC_SITE_URL || env.publicSiteUrl).replace(/\/$/, '');
+  publicCache(res, 3600);
+  res.type('text/plain').send(`User-agent: *
+Allow: /
+
+Sitemap: ${site}/sitemap.xml
+`);
+});
+
+export const sitemapData = asyncHandler(async (req, res) => {
+  const [services, cases, articles, lawyers, pages, vacancies] = await Promise.all([
+    Service.find(PUBLISHED).select('slug updatedAt').lean(),
+    CaseModel.find(PUBLISHED).select('slug updatedAt').lean(),
+    Article.find(PUBLISHED).select('slug updatedAt').lean(),
+    Lawyer.find(PUBLISHED).select('slug updatedAt').lean(),
+    Page.find(PUBLISHED).select('slug updatedAt').lean(),
+    Vacancy.find(PUBLISHED).select('slug updatedAt').lean(),
+  ]);
+
+  publicCache(res, 3600);
+  return ok(res, { pages, services, cases, articles, lawyers, vacancies });
+});
