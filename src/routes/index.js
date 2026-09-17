@@ -8,8 +8,12 @@ import Category from '../models/Category.js';
 import Lawyer from '../models/Lawyer.js';
 import Vacancy from '../models/Vacancy.js';
 import GalleryItem from '../models/GalleryItem.js';
+import Testimonial from '../models/Testimonial.js';
 
 import { readingMinutes, toPlainText } from '../lib/sanitize.js';
+import { ok } from '../lib/respond.js';
+import { PAGE_BLUEPRINTS } from '../config/pageBlueprints.js';
+import { requireAuth, requirePermission } from '../middleware/auth.js';
 
 import authRoutes from './auth.js';
 import publicRoutes from './public.js';
@@ -17,11 +21,13 @@ import adminRoutes from './admins.js';
 import mediaRoutes from './media.js';
 import settingsRoutes from './settings.js';
 import enquiryRoutes from './enquiries.js';
+import subscriberRoutes from './subscribers.js';
+import commentRoutes from './comments.js';
 import resourceRouter from './resource.js';
 
 import {
   pageSchema, serviceSchema, caseSchema,
-  articleSchema, categorySchema, lawyerSchema, vacancySchema, galleryItemSchema,
+  articleSchema, categorySchema, lawyerSchema, vacancySchema, galleryItemSchema, testimonialSchema,
 } from '../validators/schemas.js';
 
 const router = Router();
@@ -31,7 +37,16 @@ router.use('/public', publicRoutes);
 router.use('/admins', adminRoutes);
 router.use('/media', mediaRoutes);
 router.use('/enquiries', enquiryRoutes);
+router.use('/subscribers', subscriberRoutes);
+router.use('/comments', commentRoutes);
 router.use('/', settingsRoutes);
+
+// Which sections each built-in page has, and what its fields are called. The
+// dashboard builds its page forms from this. Registered before the pages
+// router so "blueprints" is never treated as a page id.
+router.get('/pages/blueprints', requireAuth, requirePermission('pages:read'), (req, res) => {
+  ok(res, PAGE_BLUEPRINTS);
+});
 
 router.use('/pages', resourceRouter({
   name: 'pages',
@@ -107,6 +122,15 @@ router.use('/gallery', resourceRouter({
   schema: galleryItemSchema,
   searchFields: ['title', 'description', 'location'],
   populate: [{ path: 'image', select: 'secureUrl width height alt' }],
+  defaultSort: 'order -createdAt',
+}));
+
+router.use('/testimonials', resourceRouter({
+  name: 'testimonials',
+  Model: Testimonial,
+  schema: testimonialSchema,
+  searchFields: ['name', 'position', 'quote'],
+  populate: [{ path: 'photo', select: 'secureUrl width height alt' }],
   defaultSort: 'order -createdAt',
 }));
 

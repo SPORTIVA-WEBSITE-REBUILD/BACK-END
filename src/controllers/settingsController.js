@@ -7,6 +7,9 @@ import Article from '../models/Article.js';
 import Lawyer from '../models/Lawyer.js';
 import Vacancy from '../models/Vacancy.js';
 import GalleryItem from '../models/GalleryItem.js';
+import Testimonial from '../models/Testimonial.js';
+import Subscriber from '../models/Subscriber.js';
+import Comment from '../models/Comment.js';
 import Media from '../models/Media.js';
 import Enquiry from '../models/Enquiry.js';
 import ApiError from '../lib/ApiError.js';
@@ -57,6 +60,7 @@ export const stats = asyncHandler(async (req, res) => {
   const [
     pages, services, cases, casesDraft,
     articles, articlesDraft, lawyers, media, enquiriesNew, vacanciesOpen, galleryPublished,
+    testimonials, commentsPending, subscribers,
     recentEnquiries, recentArticles,
   ] = await Promise.all([
     Page.countDocuments(),
@@ -73,6 +77,9 @@ export const stats = asyncHandler(async (req, res) => {
       $or: [{ closingDate: { $exists: false } }, { closingDate: null }, { closingDate: { $gte: new Date() } }],
     }),
     GalleryItem.countDocuments({ status: 'published' }),
+    Testimonial.countDocuments({ status: 'published' }),
+    Comment.countDocuments({ status: 'pending' }),
+    Subscriber.countDocuments({ status: 'subscribed' }),
     Enquiry.find().sort('-createdAt').limit(5).select('name email subject status createdAt').lean(),
     Article.find().sort('-updatedAt').limit(5).select('title slug status updatedAt').lean(),
   ]);
@@ -82,6 +89,7 @@ export const stats = asyncHandler(async (req, res) => {
     counts: {
       pages, services, cases, casesDraft,
       articles, articlesDraft, lawyers, media, enquiriesNew, vacanciesOpen, galleryPublished,
+      testimonials, commentsPending, subscribers,
     },
     recentEnquiries,
     recentArticles,

@@ -15,6 +15,7 @@ const SiteSettingsSchema = new Schema(
       phone: { type: String, trim: true, default: '' },
       email: { type: String, trim: true, lowercase: true, default: '' },
       mapUrl: { type: String, trim: true, default: '' },
+      website: { type: String, trim: true, default: '' },
       businessHours: {
         type: [{ label: String, value: String, _id: false }],
         default: [],
@@ -26,6 +27,11 @@ const SiteSettingsSchema = new Schema(
     enquiryRecipient: { type: String, trim: true, lowercase: true, default: '' },
     // Applications go here unless a vacancy overrides it.
     careersEmail: { type: String, trim: true, lowercase: true, default: '' },
+    // The template is CC BY 3.0: its footer credit must stay unless a licence
+    // is bought, so it is on unless someone deliberately turns it off.
+    // Schedule 1 contracts a filterable case archive; the template's case page
+    // has no filter bar. On by default, removable for a pure template look.
+    showCaseFilters: { type: Boolean, default: true },
   },
   { timestamps: true },
 );

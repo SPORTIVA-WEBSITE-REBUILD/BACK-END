@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import * as ctrl from '../controllers/publicController.js';
 import validate from '../middleware/validate.js';
-import { enquiryLimiter } from '../middleware/rateLimit.js';
-import { enquirySchema } from '../validators/schemas.js';
+import { enquiryLimiter, commentLimiter, subscribeLimiter } from '../middleware/rateLimit.js';
+import { enquirySchema, subscribeSchema, commentSchema } from '../validators/schemas.js';
 
 const router = Router();
 
@@ -44,7 +44,15 @@ router.get('/cases', validate(caseQuery, 'query'), ctrl.listCases);
 router.get('/cases/:slug', ctrl.getCase);
 
 router.get('/articles', validate(articleQuery, 'query'), ctrl.listArticles);
+// Declared before /articles/:slug so these are never read as slugs.
+router.get('/articles/tags', ctrl.listTags);
+router.get('/categories', ctrl.listCategories);
 router.get('/articles/:slug', ctrl.getArticle);
+router.get('/articles/:slug/comments', ctrl.listComments);
+router.post('/articles/:slug/comments', commentLimiter, validate(commentSchema), ctrl.createComment);
+
+router.get('/testimonials', ctrl.listTestimonials);
+router.post('/subscribers', subscribeLimiter, validate(subscribeSchema), ctrl.subscribe);
 
 router.get('/gallery', ctrl.listGallery);
 

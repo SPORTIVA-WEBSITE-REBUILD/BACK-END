@@ -9,6 +9,11 @@ import Lawyer from '../models/Lawyer.js';
 import Vacancy from '../models/Vacancy.js';
 import GalleryItem from '../models/GalleryItem.js';
 import Enquiry from '../models/Enquiry.js';
+import Category from '../models/Category.js';
+import Testimonial from '../models/Testimonial.js';
+import Subscriber from '../models/Subscriber.js';
+import Comment from '../models/Comment.js';
+import { blueprintFor, withDefaults } from '../config/pageBlueprints.js';
 import ApiError from '../lib/ApiError.js';
 import asyncHandler from '../lib/asyncHandler.js';
 import { ok, created, publicCache } from '../lib/respond.js';
@@ -31,13 +36,14 @@ function canonicalRedirect(doc, requested) {
 // One call for everything the layout needs, so the shell costs one round trip
 // rather than three (CLAUDE.md section 11).
 export const getSettings = asyncHandler(async (req, res) => {
-  const [settings, navs] = await Promise.all([
+  const [settings, navs, layout] = await Promise.all([
     SiteSettings.getSingleton().then((d) => d.populate([
       { path: 'logo', select: MEDIA_FIELDS },
       { path: 'favicon', select: MEDIA_FIELDS },
       { path: 'seoDefaults.ogImage', select: MEDIA_FIELDS },
     ])),
     Navigation.find().lean(),
+    loadPage('layout'),
   ]);
 
   publicCache(res, 300);
@@ -47,23 +53,40 @@ export const getSettings = asyncHandler(async (req, res) => {
       header: navs.find((n) => n.location === 'header')?.items || [],
       footer: navs.find((n) => n.location === 'footer')?.items || [],
     },
+    // Menu button, newsletter band, footer and shared interface text — the
+    // chrome every page renders, in the same single request.
+    layout,
   });
 });
 
-/* --------------------------------- pages -------------------------------- */
-
-export const getPage = asyncHandler(async (req, res) => {
-  const page = await Page.findBySlug(req.params.slug, PUBLISHED)
+/**
+ * A page as the site renders it: the stored, published content with every
+ * empty field filled from its blueprint. A built-in page always resolves —
+ * before anyone has saved it, or while it is a draft, the blueprint defaults
+ * stand in, so the chrome never renders blank. A draft's own words are never
+ * exposed.
+ */
+async function loadPage(slug) {
+  const page = await Page.findBySlug(slug, PUBLISHED)
     .populate([
       { path: 'sections.image', select: MEDIA_FIELDS },
       { path: 'sections.items.image', select: MEDIA_FIELDS },
       { path: 'seo.ogImage', select: MEDIA_FIELDS },
     ])
     .lean();
+
+  if (!page) return blueprintFor(slug) ? withDefaults(slug, null) : null;
+  return withDefaults(page.slug, page);
+}
+
+/* --------------------------------- pages -------------------------------- */
+
+export const getPage = asyncHandler(async (req, res) => {
+  const page = await loadPage(req.params.slug);
   if (!page) throw ApiError.notFound('Page not found');
 
   publicCache(res, 300);
-  return ok(res, page, canonicalRedirect(page, req.params.slug));
+  return ok(res, page, page.slug ? canonicalRedirect(page, req.params.slug) : {});
 });
 
 /* ------------------------------- services ------------------------------- */
@@ -87,6 +110,14 @@ export const getService = asyncHandler(async (req, res) => {
     ])
     .lean();
   if (!service) throw ApiError.notFound('Service not found');
+
+  // "Our Legal Advisors": team members linked to this practice area, fetched
+  // with the service so the page needs no second request.
+  service.advisors = await Lawyer.find({ ...PUBLISHED, practiceAreas: service._id })
+    .select('name slug role quote photo')
+    .populate({ path: 'photo', select: MEDIA_FIELDS })
+    .sort('order name')
+    .lean();
 
   publicCache(res, 600);
   return ok(res, service, canonicalRedirect(service, req.params.slug));
@@ -112,8 +143,12 @@ export const listCases = asyncHandler(async (req, res) => {
   const [items, total] = await Promise.all([
     CaseModel.find(filter)
       // Summary projection only — the body is never sent to a list view.
-      .select('title slug forum year partyRepresented outcome summary featuredImage publishedAt')
-      .populate({ path: 'featuredImage', select: MEDIA_FIELDS })
+      .select('title slug forum year partyRepresented outcome summary featuredImage practiceArea publishedAt')
+      .populate([
+        { path: 'featuredImage', select: MEDIA_FIELDS },
+        // The template's case cards carry a category line under the title.
+        { path: 'practiceArea', select: 'title slug' },
+      ])
       .sort('-year -publishedAt')
       .skip(skip)
       .limit(Number(limit))
@@ -187,7 +222,7 @@ export const listArticles = asyncHandler(async (req, res) => {
       .select('title slug excerpt featuredImage author category tags publishedAt readingMinutes')
       .populate([
         { path: 'featuredImage', select: MEDIA_FIELDS },
-        { path: 'author', select: 'name slug role photo' },
+        { path: 'author', select: 'name slug role photo', populate: { path: 'photo', select: MEDIA_FIELDS } },
         { path: 'category', select: 'name slug' },
       ])
       .sort('-publishedAt')
@@ -196,6 +231,11 @@ export const listArticles = asyncHandler(async (req, res) => {
       .lean(),
     Article.countDocuments(filter),
   ]);
+
+  // The sidebar's recent-article list shows a comment count. One grouped
+  // query for the whole page of results, not one per article.
+  const counts = await commentCounts(items.map((a) => a._id));
+  for (const item of items) item.commentCount = counts.get(String(item._id)) || 0;
 
   publicCache(res, 300);
   return ok(res, items, {
@@ -210,7 +250,7 @@ export const getArticle = asyncHandler(async (req, res) => {
   const article = await Article.findBySlug(req.params.slug, PUBLISHED)
     .populate([
       { path: 'featuredImage', select: MEDIA_FIELDS },
-      { path: 'author', select: 'name slug role photo bio' },
+      { path: 'author', select: 'name slug role photo bio', populate: { path: 'photo', select: MEDIA_FIELDS } },
       { path: 'category', select: 'name slug' },
       { path: 'seo.ogImage', select: MEDIA_FIELDS },
     ])
@@ -238,7 +278,7 @@ export const getArticle = asyncHandler(async (req, res) => {
 
 export const listLawyers = asyncHandler(async (req, res) => {
   const lawyers = await Lawyer.find(PUBLISHED)
-    .select('name slug role photo order socials')
+    .select('name slug role quote photo order socials')
     .populate({ path: 'photo', select: MEDIA_FIELDS })
     .sort('order name')
     .lean();
@@ -311,6 +351,131 @@ export const getVacancy = asyncHandler(async (req, res) => {
   return ok(res, { ...vacancy, isClosed }, canonicalRedirect(vacancy, req.params.slug));
 });
 
+/* ----------------------------- testimonials ----------------------------- */
+
+export const listTestimonials = asyncHandler(async (req, res) => {
+  const items = await Testimonial.find(PUBLISHED)
+    .select('quote name position photo order')
+    .populate({ path: 'photo', select: MEDIA_FIELDS })
+    .sort('order -createdAt')
+    .limit(30)
+    .lean();
+
+  publicCache(res, 600);
+  return ok(res, items);
+});
+
+/* --------------------------- blog taxonomy ------------------------------ */
+
+/** Categories that actually have published articles, for the sidebar. */
+export const listCategories = asyncHandler(async (req, res) => {
+  const used = await Article.distinct('category', PUBLISHED);
+  const categories = await Category.find({ _id: { $in: used } })
+    .select('name slug')
+    .sort('name')
+    .lean();
+
+  publicCache(res, 900);
+  return ok(res, categories);
+});
+
+/** Distinct tags on published articles, for the tag cloud. */
+export const listTags = asyncHandler(async (req, res) => {
+  const tags = await Article.distinct('tags', PUBLISHED);
+  publicCache(res, 900);
+  return ok(res, tags.filter(Boolean).sort((a, b) => a.localeCompare(b)).slice(0, 40));
+});
+
+/* ------------------------------ newsletter ------------------------------ */
+
+const hashIp = (ip) => crypto.createHash('sha256').update(`${ip}:${env.accessSecret}`).digest('hex');
+
+export const subscribe = asyncHandler(async (req, res) => {
+  const { email, company } = req.body;
+
+  // Honeypot: answer exactly as for a real sign-up so a bot learns nothing.
+  if (company) return created(res, { subscribed: true });
+
+  // Signing up twice is not an error, and re-subscribing someone who left is
+  // what they asked for. Either way the response is the same, so the form
+  // cannot be used to find out whether an address is already on the list.
+  await Subscriber.updateOne(
+    { email },
+    { $set: { status: 'subscribed', ipHash: hashIp(req.ip) } },
+    { upsert: true },
+  );
+
+  return created(res, { subscribed: true });
+});
+
+/* ------------------------------- comments ------------------------------- */
+
+async function commentCounts(articleIds) {
+  if (!articleIds.length) return new Map();
+  const rows = await Comment.aggregate([
+    { $match: { article: { $in: articleIds }, status: 'approved' } },
+    { $group: { _id: '$article', count: { $sum: 1 } } },
+  ]);
+  return new Map(rows.map((r) => [String(r._id), r.count]));
+}
+
+async function findPublishedArticle(slug) {
+  const article = await Article.findBySlug(slug, PUBLISHED).select('_id slug').lean();
+  if (!article) throw ApiError.notFound('Article not found');
+  return article;
+}
+
+/**
+ * Approved comments, oldest first, with replies nested under their parent —
+ * the shape the template's threaded comment list renders.
+ * Email addresses are personal data and are never returned.
+ */
+export const listComments = asyncHandler(async (req, res) => {
+  const article = await findPublishedArticle(req.params.slug);
+
+  const rows = await Comment.find({ article: article._id, status: 'approved' })
+    .select('parent name website message createdAt')
+    .sort('createdAt')
+    .limit(500)
+    .lean();
+
+  const byId = new Map(rows.map((c) => [String(c._id), { ...c, replies: [] }]));
+  const roots = [];
+  for (const comment of byId.values()) {
+    const parent = comment.parent && byId.get(String(comment.parent));
+    if (parent) parent.replies.push(comment);
+    else roots.push(comment);
+  }
+
+  // Comments change as they are approved; keep the edge cache short.
+  publicCache(res, 60);
+  return ok(res, roots, { total: rows.length });
+});
+
+export const createComment = asyncHandler(async (req, res) => {
+  const { phone, parent, ...payload } = req.body;
+  const article = await findPublishedArticle(req.params.slug);
+
+  // Honeypot: indistinguishable from a real submission.
+  if (phone) return created(res, { received: true, status: 'pending' });
+
+  // A reply must answer an approved comment on this same article.
+  if (parent) {
+    const exists = await Comment.exists({ _id: parent, article: article._id, status: 'approved' });
+    if (!exists) throw ApiError.badRequest('That comment cannot be replied to');
+  }
+
+  await Comment.create({
+    ...payload,
+    article: article._id,
+    parent: parent || null,
+    status: 'pending',
+    ipHash: hashIp(req.ip),
+  });
+
+  return created(res, { received: true, status: 'pending' });
+});
+
 /* ------------------------------- enquiries ------------------------------ */
 
 export const createEnquiry = asyncHandler(async (req, res) => {
@@ -347,6 +512,7 @@ const SITEMAP_STATIC = [
   ['/record', 0.9, 'weekly'],
   ['/insights', 0.9, 'weekly'],
   ['/about', 0.7, 'monthly'],
+  ['/lawyers', 0.6, 'monthly'],
   ['/careers', 0.6, 'weekly'],
   ['/contact', 0.7, 'yearly'],
   ['/privacy-policy', 0.3, 'yearly'],

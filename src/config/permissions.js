@@ -5,7 +5,8 @@
  */
 export const RESOURCES = [
   'pages', 'services', 'cases', 'articles', 'categories',
-  'lawyers', 'vacancies', 'gallery', 'media', 'enquiries', 'settings', 'navigation', 'admins',
+  'lawyers', 'vacancies', 'gallery', 'testimonials', 'comments', 'subscribers',
+  'media', 'enquiries', 'settings', 'navigation', 'admins',
 ];
 
 export const ROLES = ['super_admin', 'admin', 'editor'];
@@ -14,10 +15,11 @@ export const ROLE_PERMISSIONS = {
   super_admin: ['*'],
   admin: [
     'pages:*', 'services:*', 'cases:*', 'articles:*', 'categories:*',
-    'lawyers:*', 'vacancies:*', 'gallery:*', 'media:*', 'enquiries:*', 'settings:*', 'navigation:*',
+    'lawyers:*', 'vacancies:*', 'gallery:*', 'testimonials:*', 'comments:*', 'subscribers:*',
+    'media:*', 'enquiries:*', 'settings:*', 'navigation:*',
   ],
   editor: [
-    'articles:*', 'cases:*', 'vacancies:*', 'gallery:*', 'media:*',
+    'articles:*', 'cases:*', 'vacancies:*', 'gallery:*', 'testimonials:*', 'comments:*', 'media:*',
     'enquiries:read', 'services:read', 'lawyers:read', 'categories:read',
   ],
 };

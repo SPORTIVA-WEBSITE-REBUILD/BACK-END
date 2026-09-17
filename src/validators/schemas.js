@@ -109,11 +109,24 @@ const section = z.object({
   subheading: z.string().max(300).optional(),
   body: z.string().max(20000).optional(),
   image: optionalObjectId,
+  // A video page link (YouTube/Vimeo), opened in a popup. Only https: a
+  // section video is always an external embed.
+  video: z.union([
+    z.literal(''),
+    safeHref.refine((v) => /^https:\/\//i.test(v), 'Use the full https:// address of the video'),
+  ]).optional(),
+  value: z.string().max(40).optional(),
   cta: z.object({
     label: z.string().max(80).optional(),
     href: safeHref.optional(),
   }).strict().optional(),
   items: z.array(sectionItem).max(40).optional(),
+  // Named interface strings (placeholders, button names, widget titles). Keys
+  // are simple identifiers; which keys a page uses is set by its blueprint.
+  labels: z.record(
+    z.string().regex(/^[a-zA-Z][a-zA-Z0-9]{0,39}$/, 'Invalid label key'),
+    z.string().max(300),
+  ).refine((l) => Object.keys(l).length <= 40, 'A section holds at most 40 labels').optional(),
 }).strict();
 
 export const pageSchema = z.object({
@@ -178,6 +191,7 @@ export const lawyerSchema = z.object({
   slug: slug.optional(),
   role: z.string().max(120).optional(),
   bio: z.string().max(60000).optional(),
+  quote: z.string().max(400).optional(),
   photo: optionalObjectId,
   qualifications: z.array(z.string().max(160)).max(20).optional(),
   practiceAreas: z.array(objectId).max(20).optional(),
@@ -234,6 +248,7 @@ export const settingsSchema = z.object({
     phone: z.string().max(60).optional(),
     email: z.string().trim().toLowerCase().email().or(z.literal('')).optional(),
     mapUrl: z.string().max(600).optional(),
+    website: z.string().trim().max(300).optional(),
     businessHours: z.array(z.object({
       label: z.string().max(80),
       value: z.string().max(120),
@@ -244,6 +259,7 @@ export const settingsSchema = z.object({
   seoDefaults: seo,
   enquiryRecipient: z.string().trim().toLowerCase().email().or(z.literal('')).optional(),
   careersEmail: z.string().trim().toLowerCase().email().or(z.literal('')).optional(),
+  showCaseFilters: z.boolean().optional(),
 }).strict();
 
 const navItem = z.object({
@@ -291,8 +307,49 @@ export const enquirySchema = z.object({
   phone: z.string().max(40).optional(),
   subject: z.string().max(200).optional(),
   message: z.string().trim().min(10, 'Please give us a little more detail').max(5000),
+  source: z.enum(['contact', 'consultation']).optional(),
   // Honeypot: a real visitor never fills a hidden field.
   website: z.string().max(0).optional(),
+}).strict();
+
+/* ---------------------------- testimonials ----------------------------- */
+
+export const testimonialSchema = z.object({
+  quote: z.string().trim().min(1).max(800),
+  name: z.string().trim().min(1).max(120),
+  position: z.string().max(120).optional(),
+  photo: optionalObjectId,
+  order: z.number().int().min(0).max(999).optional(),
+  status: status.optional(),
+}).strict();
+
+/* ----------------------------- newsletter ------------------------------ */
+
+export const subscribeSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Enter a valid email address').max(254),
+  // Honeypot, as on the enquiry form.
+  company: z.string().max(0).optional(),
+}).strict();
+
+export const subscriberStatusSchema = z.object({
+  status: z.enum(['subscribed', 'unsubscribed']),
+}).strict();
+
+/* ------------------------------ comments ------------------------------- */
+
+export const commentSchema = z.object({
+  name: z.string().trim().min(2, 'Please tell us your name').max(120),
+  email: z.string().trim().toLowerCase().email('Enter a valid email address').max(254),
+  // Optional, and only ever a real web address — it becomes a link.
+  website: z.union([z.literal(''), z.string().trim().url().max(300).refine((v) => /^https?:\/\//i.test(v), 'Use a full http(s) address')]).optional(),
+  message: z.string().trim().min(3, 'Please write a comment').max(3000),
+  parent: optionalObjectId,
+  // Honeypot.
+  phone: z.string().max(0).optional(),
+}).strict();
+
+export const commentStatusSchema = z.object({
+  status: z.enum(['pending', 'approved', 'spam']),
 }).strict();
 
 export const enquiryStatusSchema = z.object({

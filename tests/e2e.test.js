@@ -46,7 +46,9 @@ describe('end to end: an administrator changes what the public site says', () =>
     }).expect(201);
 
     // A draft is not public yet — the visitor must not see unfinished work.
-    await request(app).get('/api/public/pages/home').expect(404);
+    // Home is a built-in page, so they get the template's default wording.
+    const draftView = await request(app).get('/api/public/pages/home').expect(200);
+    expect(JSON.stringify(draftView.body)).not.toContain('Sports law, argued properly.');
 
     // 5. They publish it.
     await agent.patch(`/api/pages/${page.body.data._id}/status`)
