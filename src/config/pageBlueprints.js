@@ -202,6 +202,7 @@ export const PAGE_BLUEPRINTS = [
               next: { label: 'Next (screen readers)', default: 'Next' },
               of: { label: '"1 of 3" separator', default: 'of' },
               playVideo: { label: 'Play video (screen readers)', default: 'Play video' },
+              viewProfile: { label: 'View profile link', default: 'View profile' },
             },
           },
         },
@@ -266,7 +267,8 @@ export const PAGE_BLUEPRINTS = [
             label: 'Rotating words',
             singular: 'Word',
             max: 8,
-            fields: { title: 'Word or phrase' },
+            hint: 'Each word can have its own background, which fades in as the word is typed. Words without one show the main background image.',
+            fields: { title: 'Word or phrase', image: 'Background for this word, e.g. a map' },
           },
           value: { label: 'Pause on each word (milliseconds)', default: '2000' },
           body: { label: 'Text', type: 'textarea' },
@@ -282,7 +284,7 @@ export const PAGE_BLUEPRINTS = [
           subheading: 'Small heading',
           heading: 'Heading',
           body: { label: 'Text', type: 'textarea' },
-          cta: 'Button',
+          cta: { label: 'Button', default: { label: 'All services', href: '/services' } },
         },
       },
       {
@@ -327,6 +329,23 @@ export const PAGE_BLUEPRINTS = [
         fields: {
           subheading: 'Small heading',
           heading: 'Heading',
+        },
+      },
+      {
+        key: 'careers',
+        label: 'Open roles strip',
+        hint: 'Shown only while at least one job is open. Roles are managed under Careers.',
+        fields: {
+          subheading: { label: 'Small heading', default: 'Careers' },
+          heading: { label: 'Heading', default: "We're hiring" },
+          cta: { label: 'Button', default: { label: 'View all roles', href: '/careers' } },
+          labels: {
+            label: 'Role text',
+            keys: {
+              viewRole: { label: 'View role button', default: 'View role' },
+              closes: { label: 'Closing date prefix', default: 'Closes' },
+            },
+          },
         },
       },
       consultation,
@@ -413,6 +432,12 @@ export const PAGE_BLUEPRINTS = [
         label: 'Practice areas',
         fields: { heading: { label: 'Heading', default: 'Practice areas' } },
       },
+      {
+        key: 'insights',
+        label: 'Recent insights',
+        hint: 'Articles this team member wrote are previewed at the foot of the profile.',
+        fields: { heading: { label: 'Heading', default: 'Recent insights' } },
+      },
     ],
   },
   {
@@ -447,6 +472,12 @@ export const PAGE_BLUEPRINTS = [
         label: 'Legal advisors',
         hint: 'Team members linked to the service are shown below this heading.',
         fields: { heading: { label: 'Heading', default: 'Our Legal Advisors' } },
+      },
+      {
+        key: 'relatedCases',
+        label: 'Related matters',
+        hint: 'Cases linked to the service are previewed below the advisors.',
+        fields: { heading: { label: 'Heading', default: 'Related matters' } },
       },
       {
         key: 'sidebar',

@@ -333,3 +333,56 @@ describe('data the template layouts need', () => {
   });
 
 });
+
+describe('previews of stored content', () => {
+  it('gives team cards a short plain-text bio preview, not the full rich text', async () => {
+    const { agent } = await authedAgent();
+    const long = `<p>Pius &amp; partners ${'advises clubs on disputes. '.repeat(20)}</p>`;
+    await publish(agent, 'lawyers', { name: 'Previewed', bio: long });
+
+    const res = await request(app).get('/api/public/lawyers').expect(200);
+    const [lawyer] = res.body.data;
+    expect(lawyer.bio).toBeUndefined();
+    expect(lawyer.bioPreview.startsWith('Pius & partners advises')).toBe(true);
+    expect(lawyer.bioPreview).not.toContain('<');
+    expect(lawyer.bioPreview.length).toBeLessThanOrEqual(221);
+    expect(lawyer.bioPreview.endsWith('…')).toBe(true);
+  });
+
+  it('lists published cases in a service\'s practice area on the service', async () => {
+    const { agent } = await authedAgent();
+    const service = await publish(agent, 'services', { title: 'Disputes' });
+    const base = { forum: 'CAS', year: 2026, partyRepresented: 'athlete', outcome: 'won', summary: 'Won on appeal.' };
+    await publish(agent, 'cases', { ...base, title: 'Linked matter', practiceArea: service._id });
+    await agent.post('/api/cases').send({ ...base, title: 'Draft matter', practiceArea: service._id }).expect(201);
+    await publish(agent, 'cases', { ...base, title: 'Other matter' });
+
+    const res = await request(app).get(`/api/public/services/${service.slug}`).expect(200);
+    expect(res.body.data.cases.map((c) => c.title)).toEqual(['Linked matter']);
+    expect(res.body.data.cases[0]).toMatchObject({ forum: 'CAS', outcome: 'won', summary: 'Won on appeal.' });
+  });
+
+  it('lists a team member\'s published articles on their profile', async () => {
+    const { agent } = await authedAgent();
+    const lawyer = await publish(agent, 'lawyers', { name: 'Author' });
+    await publish(agent, 'articles', { title: 'Theirs', body: '<p>x</p>', author: lawyer._id });
+    await agent.post('/api/articles').send({ title: 'Unpublished', author: lawyer._id }).expect(201);
+    await publish(agent, 'articles', { title: 'Someone else', body: '<p>x</p>' });
+
+    const res = await request(app).get(`/api/public/lawyers/${lawyer.slug}`).expect(200);
+    expect(res.body.data.articles.map((a) => a.title)).toEqual(['Theirs']);
+  });
+
+  it('defaults the new preview wording on the home and detail pages', async () => {
+    const home = (await request(app).get('/api/public/pages/home')).body.data.sections;
+    const by = (list, key) => list.find((s) => s.key === key);
+    expect(by(home, 'services').cta).toEqual({ label: 'All services', href: '/services' });
+    expect(by(home, 'careers')).toMatchObject({ heading: "We're hiring", cta: { label: 'View all roles', href: '/careers' } });
+    expect(by(home, 'careers').labels).toEqual({ viewRole: 'View role', closes: 'Closes' });
+
+    const service = (await request(app).get('/api/public/pages/service-detail')).body.data.sections;
+    expect(by(service, 'relatedCases').heading).toBe('Related matters');
+    const profile = (await request(app).get('/api/public/pages/lawyer-detail')).body.data.sections;
+    expect(by(profile, 'insights').heading).toBe('Recent insights');
+  });
+});
