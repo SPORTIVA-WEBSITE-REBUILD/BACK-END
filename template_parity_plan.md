@@ -175,3 +175,16 @@ Built and tested:
 - **Frontend:** every page rebuilt with the template's markup (`src/components/template/`); loader, navbar scroll states, Stellar parallax, TxtRotate, 7s counters, Owl carousels, Magnific video popup, tabs, flip cards, reveal timings; new `/lawyers` route; all text from the API.
 - **Verification:** `src/test/parity.test.jsx` asserts each template page's top-level blocks and classes match in order. Side-by-side headless screenshots with the template's own content matched page heights exactly on Home (6694px) and About (3531px); remaining height differences came from sample data (item counts, pagination).
 - Fixed along the way: `animate-subset.css` had lost `.ftco-animated` (revealed blocks faded back out); `ionicons-subset.css` styled the span instead of `::before` (arrows misaligned).
+
+## 9. Changes after parity, at the firm's request (2026-09-17)
+
+The template is the base; these deliberate departures were requested afterwards:
+
+- **Brand:** primary colour is the firm's blue `#047dd6` (template gold removed) on the site and the dashboard; the Colorlib credit is removed (a licence is required before launch).
+- **Type:** headlines in Playfair Display (a high-contrast Baskerville-style serif), text and interface in Montserrat — on both apps.
+- **Buttons:** pill-shaped, liquid-glass treatment (translucent blue with backdrop blur, white-to-blue edge light; on hover a white sheen sweep, deeper blur and a soft blue shadow). Form submits are `<button>`s so they can carry it.
+- **Previews:** case cards show forum · year · outcome, two lines of summary and Read more; insight cards show author · category · reading time with a clamped excerpt; team cards link to the profile with a bio preview; a "We're hiring" strip shows open roles on home; service pages list related matters, profiles list recent insights.
+- **Service cards:** image-led (no icons); the whole card links; hover blends blue into white. The icon picker is gone from the service editor.
+- **Hero:** each rotating word can have its own background (Pages → Home → Hero → Rotating words), cross-fading as the word is typed. Four brand-coloured maps (Natural Earth, public domain) are attached: Africa, Nigeria, the continent, and a world view.
+- **Carousels:** no dots; they advance every 5 s, pausing on hover, focus or drag, and never for reduced motion; arrow keys move them.
+- **Responsive:** audited every site route (15) and dashboard screen (28) at 320–1440 px with no horizontal overflow. Fixes: detail banners grow for long titles and use a smaller phone title; case and article images keep a 4:3 box with the whole graphic fitted (Cloudinary `c_pad,b_auto`); tighter menu spacing at 992–1199 px; dashboard top bar wraps on phones; mobile menu button is icon-only.

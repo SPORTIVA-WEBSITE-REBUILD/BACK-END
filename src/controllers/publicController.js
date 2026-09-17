@@ -15,6 +15,7 @@ import Subscriber from '../models/Subscriber.js';
 import Comment from '../models/Comment.js';
 import { blueprintFor, withDefaults } from '../config/pageBlueprints.js';
 import ApiError from '../lib/ApiError.js';
+import { toPlainText } from '../lib/sanitize.js';
 import asyncHandler from '../lib/asyncHandler.js';
 import { ok, created, publicCache } from '../lib/respond.js';
 import env from '../config/env.js';
@@ -117,6 +118,14 @@ export const getService = asyncHandler(async (req, res) => {
     .select('name slug role quote photo')
     .populate({ path: 'photo', select: MEDIA_FIELDS })
     .sort('order name')
+    .lean();
+
+  // Matters handled in this practice area, previewed below the advisors.
+  service.cases = await CaseModel.find({ ...PUBLISHED, practiceArea: service._id })
+    .select('title slug forum year partyRepresented outcome summary featuredImage practiceArea publishedAt')
+    .populate([{ path: 'featuredImage', select: MEDIA_FIELDS }, { path: 'practiceArea', select: 'title slug' }])
+    .sort('-publishedAt')
+    .limit(4)
     .lean();
 
   publicCache(res, 600);
@@ -276,15 +285,29 @@ export const getArticle = asyncHandler(async (req, res) => {
 
 /* -------------------------------- lawyers ------------------------------- */
 
+/** The first `max` characters of rich text, as plain text, ending on a word. */
+const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", apos: "'", nbsp: ' ' };
+
+function preview(html, max = 220) {
+  // Plain text for React to escape itself, so entities are decoded here.
+  const text = toPlainText(html || '').replace(/&(amp|lt|gt|quot|#39|apos|nbsp);/g, (_, e) => ENTITIES[e]);
+  if (text.length <= max) return text;
+  return `${text.slice(0, max).replace(/\s+\S*$/, '')}…`;
+}
+
 export const listLawyers = asyncHandler(async (req, res) => {
   const lawyers = await Lawyer.find(PUBLISHED)
-    .select('name slug role quote photo order socials')
+    .select('name slug role quote photo order socials bio')
     .populate({ path: 'photo', select: MEDIA_FIELDS })
     .sort('order name')
     .lean();
 
+  // Cards show a short plain-text preview; the full rich-text bio stays on
+  // the profile page, so the list payload stays small.
+  const items = lawyers.map(({ bio, ...lawyer }) => ({ ...lawyer, bioPreview: preview(bio) }));
+
   publicCache(res, 600);
-  return ok(res, lawyers);
+  return ok(res, items);
 });
 
 export const getLawyer = asyncHandler(async (req, res) => {
@@ -296,6 +319,14 @@ export const getLawyer = asyncHandler(async (req, res) => {
     ])
     .lean();
   if (!lawyer) throw ApiError.notFound('Lawyer not found');
+
+  // Their most recent writing, previewed at the foot of the profile.
+  lawyer.articles = await Article.find({ ...PUBLISHED, author: lawyer._id })
+    .select('title slug excerpt featuredImage category publishedAt readingMinutes')
+    .populate([{ path: 'featuredImage', select: MEDIA_FIELDS }, { path: 'category', select: 'name slug' }])
+    .sort('-publishedAt')
+    .limit(3)
+    .lean();
 
   publicCache(res, 600);
   return ok(res, lawyer, canonicalRedirect(lawyer, req.params.slug));
