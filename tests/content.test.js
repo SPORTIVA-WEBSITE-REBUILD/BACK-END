@@ -302,7 +302,9 @@ describe('page sections are rich text and must be sanitised too', () => {
     await agent.patch(`/api/pages/${created.body.data._id}/status`).send({ status: 'published' });
 
     const pub = await request(app).get('/api/public/pages/privacy-policy');
-    expect(pub.body.data.sections[0].body).not.toContain('<script');
+    const body = pub.body.data.sections.find((s) => s.key === 'body').body;
+    expect(body).toContain('<p>ok</p>');
+    expect(body).not.toContain('<script');
   });
 });
 

@@ -9,6 +9,8 @@ const EnquirySchema = new Schema(
     phone: { type: String, trim: true, maxlength: 40, default: '' },
     subject: { type: String, trim: true, maxlength: 200, default: '' },
     message: { type: String, required: true, trim: true, maxlength: 5000 },
+    // Which form it came from: the contact page, or a consultation form.
+    source: { type: String, enum: ['contact', 'consultation'], default: 'contact' },
     status: {
       type: String,
       enum: ['new', 'read', 'replied', 'spam'],
@@ -25,5 +27,6 @@ const EnquirySchema = new Schema(
 
 EnquirySchema.index({ status: 1, createdAt: -1 });
 EnquirySchema.index({ createdAt: -1 });
+EnquirySchema.index({ source: 1, createdAt: -1 });
 
 export default mongoose.models.Enquiry || mongoose.model('Enquiry', EnquirySchema);

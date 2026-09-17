@@ -9,6 +9,8 @@ const LawyerSchema = new Schema(
     slug: { type: String, required: true, unique: true, trim: true, lowercase: true },
     role: { type: String, trim: true, maxlength: 120, default: '' },
     bio: { type: String, default: '' },
+    // Shown on the back of the team flip card.
+    quote: { type: String, trim: true, maxlength: 400, default: '' },
     photo: { type: Schema.Types.ObjectId, ref: 'Media' },
     qualifications: { type: [String], default: [] },
     practiceAreas: [{ type: Schema.Types.ObjectId, ref: 'Service' }],

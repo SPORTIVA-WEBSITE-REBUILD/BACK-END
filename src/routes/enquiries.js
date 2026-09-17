@@ -5,16 +5,27 @@ import asyncHandler from '../lib/asyncHandler.js';
 import { ok, noContent, noStore } from '../lib/respond.js';
 import validate from '../middleware/validate.js';
 import { requireAuth, requirePermission } from '../middleware/auth.js';
-import { listQuery } from '../validators/common.js';
+import { z } from 'zod';
 import { enquiryStatusSchema } from '../validators/schemas.js';
 
 const router = Router();
 router.use(requireAuth);
 
+// Enquiries have their own statuses. The generic list query only accepts
+// draft/published, which rejected every status filter the dashboard sent.
+const listQuery = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  q: z.string().trim().max(120).optional(),
+  status: z.enum(['new', 'read', 'replied', 'spam']).optional(),
+  source: z.enum(['contact', 'consultation']).optional(),
+});
+
 router.get('/', requirePermission('enquiries:read'), validate(listQuery, 'query'), asyncHandler(async (req, res) => {
   const q = req.validatedQuery;
   const filter = {};
   if (q.status) filter.status = q.status;
+  if (q.source) filter.source = q.source;
   if (q.q) {
     const safe = q.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const rx = new RegExp(safe, 'i');

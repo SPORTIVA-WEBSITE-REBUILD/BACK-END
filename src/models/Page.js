@@ -15,6 +15,12 @@ const SectionSchema = new Schema(
     subheading: { type: String, trim: true, default: '' },
     body: { type: String, default: '' },
     image: { type: Schema.Types.ObjectId, ref: 'Media' },
+    video: { type: String, trim: true, default: '' },
+    value: { type: String, trim: true, default: '' },
+    // Interface text the section needs beyond its heading and body: form
+    // placeholders, button names, widget titles. The page's blueprint names
+    // the keys and supplies the template's wording as the default.
+    labels: { type: Map, of: String, default: undefined },
     cta: {
       label: { type: String, trim: true, default: '' },
       href: { type: String, trim: true, default: '' },

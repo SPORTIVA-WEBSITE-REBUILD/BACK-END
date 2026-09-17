@@ -34,6 +34,15 @@ export const enquiryLimiter = rateLimit({
   ...common, windowMs: 60 * 60 * 1000, limit: 3,
 });
 
+/** Comments are moderated anyway; this only stops a flood of the queue. */
+export const commentLimiter = rateLimit({
+  ...common, windowMs: 60 * 60 * 1000, limit: 10,
+});
+
+export const subscribeLimiter = rateLimit({
+  ...common, windowMs: 60 * 60 * 1000, limit: 5,
+});
+
 export const uploadLimiter = rateLimit({
   ...common, windowMs: 60 * 60 * 1000, limit: 100,
 });
