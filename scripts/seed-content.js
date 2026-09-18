@@ -26,6 +26,8 @@ import { slugify } from '../src/lib/slug.js';
 import { cleanHtml } from '../src/lib/sanitize.js';
 
 const publish = process.argv.includes('--publish');
+// Placeholder colleagues are seeded by default; pass --no-demo-team to skip.
+const demoTeam = !process.argv.includes('--no-demo-team');
 
 /* ------------------------------ the firm -------------------------------- */
 
@@ -121,6 +123,28 @@ const TEAM = [
   },
 ];
 
+/*
+ * Placeholder colleagues, so the team grid can be judged with more than two
+ * people in it. These are not real people. Every one of them is marked three
+ * ways — a `demo-` slug, a quote that says so, and a bio that opens by saying
+ * so — so none can quietly pass as one of the firm's lawyers.
+ *
+ * Drop them all with:
+ *   npm run seed:content -- --no-demo-team   (skips creating them)
+ *   node -e "..."                            (see README) to delete existing
+ * or simply delete them from the dashboard: they sort last and are labelled.
+ */
+const DEMO_TEAM = [
+  { name: 'Adaeze Nwosu', slug: 'demo-adaeze-nwosu', role: 'Senior Associate', practice: 'sports-dispute-resolution', order: 10 },
+  { name: 'Tunde Bakare', slug: 'demo-tunde-bakare', role: 'Associate', practice: 'contracts-and-transfers', order: 11 },
+  { name: 'Amara Eze', slug: 'demo-amara-eze', role: 'Associate', practice: 'sports-governance', order: 12 },
+];
+
+const DEMO_QUOTE = 'Placeholder profile — replace or remove before launch.';
+const DEMO_BIO = '<p><strong>Placeholder profile.</strong> Dummy content, seeded so the team '
+  + 'page could be laid out before the firm supplied its own. It does not describe a real '
+  + 'person and must be replaced or removed before launch.</p>';
+
 const CATEGORIES = [
   { name: 'News', slug: 'news', description: 'Firm announcements, transfers and mandates.' },
   { name: 'Analysis', slug: 'analysis', description: 'Long-form commentary on sports law and regulation.' },
@@ -185,6 +209,25 @@ async function main() {
     await ensure(Lawyer, { slug }, () => ({
       ...member, slug, bio: cleanHtml(member.bio), status,
     }), `team: ${member.name}`);
+  }
+
+  /* --- placeholder colleagues, so the grid is not half empty --- */
+  if (demoTeam) {
+    const svc = await Service.find().select('slug').lean();
+    const byArea = new Map(svc.map((s) => [s.slug, s._id]));
+    for (const member of DEMO_TEAM) {
+      await ensure(Lawyer, { slug: member.slug }, () => ({
+        name: member.name,
+        slug: member.slug,
+        role: member.role,
+        quote: DEMO_QUOTE,
+        bio: cleanHtml(DEMO_BIO),
+        practiceAreas: byArea.has(member.practice) ? [byArea.get(member.practice)] : [],
+        order: member.order,
+        // Published regardless of --publish: they exist to be looked at.
+        status: 'published',
+      }), `demo team: ${member.name}`);
+    }
   }
 
   /* --- page copy: fill only sections the firm has not written yet --- */
