@@ -1,0 +1,17 @@
+# Netlify deploy config. The Vercel config in vercel.json is kept alongside it;
+# neither platform reads the other's file, so both remain valid targets.
+
+[build]
+  command = "npm ci --omit=dev"
+  publish = "public"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# The whole Express app is one function; every path goes to it.
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true

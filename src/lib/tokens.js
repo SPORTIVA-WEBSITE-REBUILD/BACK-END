@@ -35,11 +35,23 @@ export function hashToken(raw) {
 export const ACCESS_COOKIE = 'pcn_at';
 export const REFRESH_COOKIE = 'pcn_rt';
 
+/*
+ * `lax` is the safer default and is right whenever the dashboard and the API
+ * share a registrable domain — set COOKIE_DOMAIN and it applies.
+ *
+ * Without a shared domain they are cross-site, and a lax cookie is simply not
+ * sent on the dashboard's requests, so nobody can sign in. On *.netlify.app
+ * that is the normal case: netlify.app is on the Public Suffix List, so two
+ * subdomains of it are two different sites and cannot share a cookie domain.
+ *
+ * `none` is only honoured over HTTPS, which is why it is tied to isProd.
+ */
 function baseCookie() {
+  const crossSite = env.isProd && !env.cookieDomain;
   return {
     httpOnly: true,
     secure: env.isProd,
-    sameSite: env.isProd ? 'lax' : 'lax',
+    sameSite: crossSite ? 'none' : 'lax',
     domain: env.cookieDomain,
     path: '/',
   };
