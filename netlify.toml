@@ -2,10 +2,9 @@
 # neither platform reads the other's file, so both remain valid targets.
 
 [build]
-  # No build step. Netlify installs dependencies itself and the function is
-  # bundled from source, so there is nothing to compile — running an install a
-  # second time here only added a way for the deploy to fail.
-  command = "echo 'API: serverless function only, nothing to build'"
+  # No build command at all. Netlify installs dependencies itself and bundles
+  # the function from source, so there is nothing to compile; every command put
+  # here so far has only been another way for the deploy to fail.
   publish = "public"
   functions = "netlify/functions"
 
