@@ -2,9 +2,17 @@
 # neither platform reads the other's file, so both remain valid targets.
 
 [build]
-  command = "npm ci --omit=dev"
+  # No build step. Netlify installs dependencies itself and the function is
+  # bundled from source, so there is nothing to compile — running an install a
+  # second time here only added a way for the deploy to fail.
+  command = "echo 'API: serverless function only, nothing to build'"
   publish = "public"
   functions = "netlify/functions"
+
+[build.environment]
+  # package.json requires >=20; pin it so a change to Netlify's default cannot
+  # silently move the runtime underneath the API.
+  NODE_VERSION = "20"
 
 [functions]
   node_bundler = "esbuild"
