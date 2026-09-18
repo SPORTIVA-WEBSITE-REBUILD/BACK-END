@@ -32,7 +32,8 @@ const HEADER_NAV = [
   { label: 'Services', href: '/services', order: 1 },
   { label: 'Record', href: '/record', order: 2 },
   { label: 'Insights', href: '/insights', order: 3 },
-  { label: 'About', href: '/about', order: 4 },
+  // The team page existed at /lawyers but nothing linked to it from the header.
+  { label: 'Team', href: '/lawyers', order: 4 },
   { label: 'Careers', href: '/careers', order: 5 },
   { label: 'Contact', href: '/contact', order: 6 },
 ];
@@ -41,7 +42,8 @@ const FOOTER_NAV = [
   { label: 'Services', href: '/services', order: 0 },
   { label: 'Record', href: '/record', order: 1 },
   { label: 'Insights', href: '/insights', order: 2 },
-  { label: 'About', href: '/about', order: 3 },
+  { label: 'Team', href: '/lawyers', order: 3 },
+  // Careers is a footer link only; it no longer has a block on the home page.
   { label: 'Careers', href: '/careers', order: 4 },
   { label: 'Contact', href: '/contact', order: 5 },
   { label: 'Privacy Policy', href: '/privacy-policy', order: 6 },
@@ -144,6 +146,41 @@ async function main() {
       { $setOnInsert: { location, items } },
       { upsert: true },
     );
+  }
+
+  /*
+   * The nav above is only written when it does not exist yet, so an existing
+   * site never picks up a new entry. Team is added here instead: only when
+   * nothing already points at /lawyers, and slotted after About rather than
+   * appended, so an administrator's own ordering and labels are left alone.
+   */
+  for (const location of ['header', 'footer']) {
+    const nav = await Navigation.findOne({ location });
+    if (!nav) continue;
+    let items = [...nav.items].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    let changed = false;
+
+    // The About page is gone — its content lives on the home page — so a link
+    // to /about would 404. Dropped from both menus.
+    if (items.some((i) => i.href === '/about')) {
+      items = items.filter((i) => i.href !== '/about');
+      changed = true;
+      console.log(`  Removed About -> /about from the ${location} navigation.`);
+    }
+
+    // The team page existed at /lawyers but nothing linked to it. Slotted where
+    // About used to sit rather than appended, so the order still reads well.
+    if (!items.some((i) => i.href === '/lawyers')) {
+      const at = items.findIndex((i) => i.href === '/insights');
+      items.splice(at < 0 ? items.length : at + 1, 0, { label: 'Team', href: '/lawyers' });
+      changed = true;
+      console.log(`  Added Team -> /lawyers to the ${location} navigation.`);
+    }
+
+    if (changed) {
+      nav.items = items.map((i, order) => ({ ...(i.toObject?.() ?? i), order }));
+      await nav.save();
+    }
   }
 
   for (const cat of CATEGORIES) {
