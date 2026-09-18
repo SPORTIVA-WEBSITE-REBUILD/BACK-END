@@ -99,6 +99,22 @@ export const listServices = asyncHandler(async (req, res) => {
     .sort('order title')
     .lean();
 
+  /*
+   * How many published cases sit behind each practice area. The site prints
+   * this under the service card, so it is counted here rather than shipping the
+   * whole case collection to the browser to be counted there.
+   *
+   * One grouped count for the page, not one query per card.
+   */
+  const counts = await CaseModel.aggregate([
+    { $match: { ...PUBLISHED, practiceArea: { $ne: null } } },
+    { $group: { _id: '$practiceArea', count: { $sum: 1 } } },
+  ]);
+  const byArea = new Map(counts.map((c) => [String(c._id), c.count]));
+  for (const service of services) {
+    service.caseCount = byArea.get(String(service._id)) || 0;
+  }
+
   publicCache(res, 600);
   return ok(res, services);
 });
