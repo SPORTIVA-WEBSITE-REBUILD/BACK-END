@@ -22,6 +22,7 @@ import Media from '../src/models/Media.js';
 import Service from '../src/models/Service.js';
 import Lawyer from '../src/models/Lawyer.js';
 import Category from '../src/models/Category.js';
+import CaseModel from '../src/models/Case.js';
 import { slugify } from '../src/lib/slug.js';
 import { cleanHtml } from '../src/lib/sanitize.js';
 
@@ -51,6 +52,26 @@ const ABOUT_REPRESENTATION = 'We act for players, coaches, clubs and federations
   + 'matters rather than referring them out.';
 
 const SERVICES_HEADING = 'We cover legal services in the area of sports law.';
+
+/*
+ * The record tab. It names the forums the firm appears before and who it acts
+ * for, and counts nothing — the front end appends a live figure taken from the
+ * published cases, so the only number shown can be checked against the archive.
+ */
+const RECORD_TAB_TEXT = 'Counsel before the FIFA Football Tribunal, the FIFA Dispute Resolution '
+  + 'Chamber and the Court of Arbitration for Sport, acting for players, coaches, clubs and '
+  + 'federations across Africa and Europe.';
+
+/*
+ * The mission tab. The line it replaces spent thirty words saying the firm
+ * wants to do a good job at an unspecified "optimal level" — a sentence that
+ * could sit on any firm's site unedited. This says what the firm actually does
+ * differently, and stays clear of the Record tab's own territory (the forums,
+ * the geography): continuity of representation, not where the work happens.
+ */
+const MISSION_TAB_TEXT = 'We work a matter end to end, from the first contract to a tribunal '
+  + 'hearing, so the firm advising you throughout is the same firm representing you when it '
+  + 'counts.';
 
 const SERVICES = [
   {
@@ -140,7 +161,7 @@ const DEMO_TEAM = [
   { name: 'Amara Eze', slug: 'demo-amara-eze', role: 'Associate', practice: 'sports-governance', order: 12 },
 ];
 
-const DEMO_QUOTE = 'Placeholder profile — replace or remove before launch.';
+const DEMO_QUOTE = 'Placeholder profile, replace or remove before launch.';
 const DEMO_BIO = '<p><strong>Placeholder profile.</strong> Dummy content, seeded so the team '
   + 'page could be laid out before the firm supplied its own. It does not describe a real '
   + 'person and must be replaced or removed before launch.</p>';
@@ -228,6 +249,17 @@ async function main() {
         status: 'published',
       }), `demo team: ${member.name}`);
     }
+
+    // ensure() only creates a missing document; it never updates one that
+    // already exists. The three above were seeded once already with an
+    // em-dash in the quote — this project's copy does not use dashes —
+    // so that needs its own guarded fix-up rather than relying on ensure().
+    const staleDash = 'Placeholder profile — replace or remove before launch.';
+    const { modifiedCount } = await Lawyer.updateMany(
+      { slug: { $in: DEMO_TEAM.map((m) => m.slug) }, quote: staleDash },
+      { $set: { quote: DEMO_QUOTE } },
+    );
+    if (modifiedCount) report.created.push(`fixed the dash in ${modifiedCount} placeholder quote(s)`);
   }
 
   /* --- page copy: fill only sections the firm has not written yet --- */
@@ -241,7 +273,9 @@ async function main() {
       },
       // The mission-statement paragraph was cut; the About block carries the
       // firm's own words without restating them as a mission.
-      intro: { heading: 'Our mission', body: ABOUT_TEAM },
+      // The eyebrow above "Why the firm", so it reads as a sibling of the
+      // Services and Outcomes sections rather than a heading on its own.
+      intro: { subheading: 'About', heading: 'Our mission', body: ABOUT_TEAM },
       services: { subheading: 'Services', heading: SERVICES_HEADING, body: ABOUT_REPRESENTATION },
       record: { subheading: 'Outcomes', heading: 'Our record' },
       gallery: { subheading: 'The firm at work', heading: 'Gallery' },
@@ -382,6 +416,13 @@ async function main() {
         + 'coaches, licensed intermediaries, athletes and public agencies.',
       to: ABOUT_TEAM,
     },
+    // The consultation panel's old template wording ("Free Consultation" /
+    // "Booking an Appointment"), replaced now that the section carries real
+    // copy of its own — see "Free consultation" in design-direction.md.
+    { slug: 'home', key: 'consultation', field: 'heading', from: 'Free Consultation', to: 'Reliable Solutions for Your Legal Matters' },
+    { slug: 'home', key: 'consultation', field: 'subheading', from: 'Booking an Appointment', to: 'GET IN TOUCH' },
+    { slug: 'about', key: 'consultation', field: 'heading', from: 'Free Consultation', to: 'Reliable Solutions for Your Legal Matters' },
+    { slug: 'about', key: 'consultation', field: 'subheading', from: 'Booking an Appointment', to: 'GET IN TOUCH' },
   ];
 
   for (const r of REWRITES) {
@@ -412,6 +453,161 @@ async function main() {
     aboutIntro.items = aboutIntro.items.filter((i) => i.title !== 'Our Mission');
     await aboutPage.save();
     report.created.push('copy: about.intro "Our Mission" removed');
+  }
+
+  /*
+   * The consultation panel's submit button. A "Become a Client" draft was
+   * tried and reverted back to "Send Message" — REWRITES above only
+   * replaces plain string fields, and cta is a {label, href} object, so it
+   * needs its own guarded block.
+   */
+  for (const slug of ['home', 'about']) {
+    const page = await Page.findOne({ slug });
+    const sec = page?.sections.find((s) => s.key === 'consultation');
+    const label = `copy: ${slug}.consultation.cta.label`;
+    if (!sec) { report.skipped.push(`${label} (no section)`); continue; }
+    if (sec.cta?.label === 'Send Message') { report.skipped.push(`${label} (already rewritten)`); continue; }
+    if (sec.cta?.label !== 'Become a Client') { report.skipped.push(`${label} (edited in the dashboard)`); continue; }
+    sec.cta.label = 'Send Message';
+    await page.save();
+    report.created.push(label);
+  }
+
+  /*
+   * The home page's record tab claimed "over 50 clubs, academies and players"
+   * and "over 150 disputes" — figures carried over from the old site with
+   * nothing behind them. The replacement describes the work rather than
+   * counting it, and the front end appends a live count taken from the
+   * published cases, so the only number on the tab is one the archive can be
+   * checked against. See FRONT-END/docs/firm-review-required.md.
+   *
+   * Replaced only while the tab still holds the old wording.
+   */
+  const homeForTab = await Page.findOne({ slug: 'home' });
+  const homeIntroTabs = homeForTab?.sections.find((s) => s.key === 'intro');
+  const recordTab = homeIntroTabs?.items?.find((i) => i.title === 'Our Record');
+  if (!recordTab) {
+    report.skipped.push('copy: home.intro "Our Record" (no such tab)');
+  } else if (recordTab.text === RECORD_TAB_TEXT) {
+    report.skipped.push('copy: home.intro "Our Record" (already rewritten)');
+  } else if (!/over 50 clubs|over 150 disputes/.test(recordTab.text || '')) {
+    report.skipped.push('copy: home.intro "Our Record" (edited in the dashboard)');
+  } else {
+    recordTab.text = RECORD_TAB_TEXT;
+    await homeForTab.save();
+    report.created.push('copy: home.intro "Our Record"');
+  }
+
+  /*
+   * The same tab set's mission tab: thirty words that said nothing concrete.
+   * Same guard — replaced only while it still holds the old sentence.
+   */
+  const missionTab = homeIntroTabs?.items?.find((i) => i.title === 'Our Mission');
+  if (!missionTab) {
+    report.skipped.push('copy: home.intro "Our Mission" (no such tab)');
+  } else if (missionTab.text === MISSION_TAB_TEXT) {
+    report.skipped.push('copy: home.intro "Our Mission" (already rewritten)');
+  } else if (
+    // Matches both the original text and the brief run this went through
+    // with em dashes, since replaced with commas — this project's copy does
+    // not use dashes. "We work a matter end to end" is the invariant part of
+    // that second version.
+    !/ultimate mission is to provide comprehensive and integrated/.test(missionTab.text || '')
+    && !/We work a matter end to end/.test(missionTab.text || '')
+  ) {
+    report.skipped.push('copy: home.intro "Our Mission" (edited in the dashboard)');
+  } else {
+    missionTab.text = MISSION_TAB_TEXT;
+    await homeForTab.save();
+    report.created.push('copy: home.intro "Our Mission"');
+  }
+
+  /* --- three real matters, restructured from press-release prose --- */
+
+  /*
+   * These three cases already existed, migrated from the old site with their
+   * press-release titles intact ("PCN Sportiva LP Secures FIFA DRC Ruling in
+   * Favour of...") and a social-media graphic as their featured image. This
+   * rewrites them onto structured fields instead: a plain "X v Y" title, the
+   * respondent and its country as their own fields, and a one-sentence
+   * holding — what the chamber actually decided — drawn from the existing
+   * `body` each record already carried, not invented.
+   *
+   * The holding sentences name neither party. That is deliberate: it means
+   * the same sentence is safe to show whether or not a case is anonymised,
+   * rather than needing a second, redacted version.
+   *
+   * `featuredImage` is unset, not deleted from the media library — the
+   * graphic still belongs on whichever Insights article carries the same
+   * announcement.
+   *
+   * Guarded on the old slug (a stable identifier, unlike the title this
+   * migration is about to change) and on the title still being the old
+   * press-release sentence, so a record already migrated, or since edited in
+   * the dashboard, is left alone.
+   */
+  const REAL_MATTERS = [
+    {
+      oldSlug: 'pcn-sportiva-lp-secures-fifa-drc-decision-in-favour-of-karim-abubakar-ghana-against-al-qasim-ira',
+      title: 'Karim Abubakar v Al Qasim',
+      opposingParty: 'Al Qasim',
+      country: 'Iraq',
+      holding: 'The FIFA DRC partially upheld the player\'s claims and ordered the club to pay '
+        + 'outstanding remuneration, interest and flight costs.',
+    },
+    {
+      oldSlug: 'fifa-drc-rules-in-favour-of-anthony-uchenna-nwadioha-nigeria-in-employment-dispute-against-bigma',
+      title: 'Anthony Uchenna Nwadioha v Bigman FC',
+      opposingParty: 'Bigman FC',
+      country: 'Tanzania',
+      holding: 'The FIFA DRC ordered the club to pay the player\'s outstanding remuneration under '
+        + 'his contract, with sporting sanctions available if it does not comply.',
+    },
+    {
+      oldSlug: 'pcn-sportiva-lp-secures-fifa-drc-ruling-in-favour-of-wisdom-uda-kanu-nigeria-against-kabuscorp-s',
+      title: 'Wisdom Uda Kanu v Kabuscorp Sport Clube do Palanca',
+      opposingParty: 'Kabuscorp Sport Clube do Palanca',
+      country: 'Angola',
+      holding: 'The FIFA DRC partially upheld the player\'s claims and ordered the club to pay '
+        + 'outstanding remuneration, breach-of-contract compensation and interest.',
+    },
+  ];
+
+  for (const matter of REAL_MATTERS) {
+    const label = `case: ${matter.title}`;
+    const doc = await CaseModel.findOne({ slug: matter.oldSlug });
+    if (!doc) {
+      report.skipped.push(`${label} (slug not found — already renamed, or never seeded)`);
+      continue;
+    }
+    if (doc.holding === matter.holding) {
+      report.skipped.push(`${label} (already restructured)`);
+      continue;
+    }
+    if (!/^PCN Sportiva LP Secures|^FIFA DRC RULES/.test(doc.title || '')) {
+      report.skipped.push(`${label} (edited in the dashboard)`);
+      continue;
+    }
+    doc.title = matter.title;
+    doc.opposingParty = matter.opposingParty;
+    doc.country = matter.country;
+    doc.holding = matter.holding;
+    doc.featuredImage = undefined;
+    /*
+     * The home page's record grid is "the three most recent published
+     * cases" — the same query as everywhere else, deliberately not a
+     * bespoke fetch-by-slug for these three specifically. All twelve
+     * existing cases share year 2026, so publishedAt is the tiebreaker, and
+     * nine of them still carry their unmigrated publishedAt from the
+     * original import — without this, two of the three cards on the
+     * rebuilt homepage would still be unmigrated ones. Bumped once, here,
+     * inside the same guard that makes the rest of this idempotent: it
+     * reflects when the record was restructured, which is what publishedAt
+     * means for every other page on the site too.
+     */
+    doc.publishedAt = new Date();
+    await doc.save();
+    report.created.push(label);
   }
 
   /* --- hero slides: the drawn map, then the two photographs --- */
@@ -489,6 +685,46 @@ async function main() {
     }
   } else {
     report.skipped.push('page: home hero slides (no hero section)');
+  }
+
+  /* --- the stock photograph, and the firm's own in its place --- */
+
+  /*
+   * A single stock image — "Empty stadium seating", captioned in the library as
+   * a placeholder to be replaced — was set on the six practice areas and on the
+   * home page's "Why the firm" section, so one generic photograph carried most
+   * of the page. The service cards no longer render an image at all, and the
+   * "Why the firm" section now ships with the firm's own photograph, so both
+   * references are cleared.
+   *
+   * Guarded on the placeholder's own id: a real photograph put there since is
+   * left exactly as it is. Sections on other pages still reference it and are
+   * deliberately out of scope — they are listed in firm-review-required.md.
+   */
+  const stock = await Media.findOne({ publicId: 'pcn-sportiva/placeholders/neutral-placeholder' });
+
+  if (!stock) {
+    report.skipped.push('stock image (not in the media library)');
+  } else {
+    const clearedServices = await Service.updateMany(
+      { image: stock._id },
+      { $unset: { image: '' } },
+    );
+    if (clearedServices.modifiedCount) {
+      report.created.push(`cleared the stock image from ${clearedServices.modifiedCount} practice area(s)`);
+    } else {
+      report.skipped.push('stock image on the practice areas');
+    }
+
+    const homePage = await Page.findOne({ slug: 'home' });
+    const homeIntro = homePage?.sections.find((s) => s.key === 'intro');
+    if (homeIntro && String(homeIntro.image) === String(stock._id)) {
+      homeIntro.image = undefined;
+      await homePage.save();
+      report.created.push('cleared the stock image from home "Why the firm"');
+    } else {
+      report.skipped.push('stock image on home "Why the firm"');
+    }
   }
 
   console.log(`\n  Seeded the firm's content${publish ? ' (published)' : ' (as drafts)'}\n`);

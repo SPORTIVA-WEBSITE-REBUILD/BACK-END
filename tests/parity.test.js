@@ -30,7 +30,7 @@ describe('blueprint defaults are served by the API', () => {
     expect(intro.heading).toBe('Contact Information');
     expect(intro.labels).toMatchObject({ address: 'Address:', phone: 'Phone:', email: 'Email:', website: 'Website' });
     expect(form.cta.label).toBe('Send Message');
-    expect(form.labels).toMatchObject({ name: 'Your Name', email: 'Your Email', subject: 'Subject', message: 'Message' });
+    expect(form.labels).toMatchObject({ name: 'Name:', namePlaceholder: 'Name', email: 'Email:', subject: 'Subject:', message: 'Message:' });
   });
 
   it('keeps what an administrator wrote and fills only what is empty', async () => {
@@ -47,7 +47,7 @@ describe('blueprint defaults are served by the API', () => {
     const form = res.body.data.sections.find((s) => s.key === 'form');
     expect(form.cta.label).toBe('Get in touch');
     expect(form.labels.name).toBe('Full name');
-    expect(form.labels.email).toBe('Your Email');
+    expect(form.labels.email).toBe('Email:');
   });
 
   it('never exposes the words of a draft page, only the defaults', async () => {
@@ -73,9 +73,9 @@ describe('blueprint defaults are served by the API', () => {
     const layout = res.body.data.layout;
     const byKey = Object.fromEntries(layout.sections.map((s) => [s.key, s]));
 
-    expect(byKey.navCta.cta).toEqual({ label: 'Free Consultation', href: '/contact' });
+    expect(byKey.navCta.cta).toEqual({ label: 'Talk to a Lawyer', href: '/contact' });
     expect(byKey.newsletter.heading).toBe('Subscribe to our Newsletter');
-    expect(byKey.newsletter.labels).toMatchObject({ placeholder: 'Enter email address', submit: 'Subscribe' });
+    expect(byKey.newsletter.labels).toMatchObject({ placeholder: 'Email address', submit: 'Subscribe' });
     expect(byKey.footer.labels).toMatchObject({ servicesHeading: 'Practice Areas', contactHeading: 'Have a Questions?' });
     expect(byKey.hours.heading).toBe('Business Hours');
     expect(byKey.common.labels).toMatchObject({ breadcrumbHome: 'Home', readMore: 'Read more' });

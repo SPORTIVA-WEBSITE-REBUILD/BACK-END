@@ -14,8 +14,19 @@ const CaseSchema = new Schema(
     forum: { type: String, required: true, trim: true },
     year: { type: Number, required: true, min: 1900, max: 2200 },
     partyRepresented: { type: String, enum: PARTIES, required: true },
+    // The respondent's name and jurisdiction, as their own structured fields
+    // rather than folded into prose — "Al Qasim" and "Iraq", not "Al Qasim
+    // (Iraq)" inside a sentence. Neither is shown on the compact card; both
+    // are here for the case detail page and for future filtering.
+    opposingParty: { type: String, trim: true, maxlength: 200, default: '' },
+    country: { type: String, trim: true, maxlength: 100, default: '' },
     outcome: { type: String, enum: OUTCOMES, required: true },
     summary: { type: String, required: true, trim: true, maxlength: 600 },
+    // One plain sentence for the compact card — what the chamber actually
+    // decided, not the press-release headline `summary`/`body` were written
+    // as. Written without naming either party, so the same sentence is safe
+    // to show whether or not the case is anonymised.
+    holding: { type: String, trim: true, maxlength: 300, default: '' },
     body: { type: String, default: '' },
     // Defaults to true so an unreviewed matter can never publish party names by
     // accident. The dashboard warns explicitly before this is turned off.
