@@ -138,7 +138,7 @@ export const getService = asyncHandler(async (req, res) => {
 
   // Matters handled in this practice area, previewed below the advisors.
   service.cases = await CaseModel.find({ ...PUBLISHED, practiceArea: service._id })
-    .select('title slug forum year partyRepresented outcome summary featuredImage practiceArea publishedAt')
+    .select('title slug forum year partyRepresented outcome summary holding anonymised featuredImage practiceArea publishedAt')
     .populate([{ path: 'featuredImage', select: MEDIA_FIELDS }, { path: 'practiceArea', select: 'title slug' }])
     .sort('-publishedAt')
     .limit(4)
@@ -168,7 +168,10 @@ export const listCases = asyncHandler(async (req, res) => {
   const [items, total] = await Promise.all([
     CaseModel.find(filter)
       // Summary projection only — the body is never sent to a list view.
-      .select('title slug forum year partyRepresented outcome summary featuredImage practiceArea publishedAt')
+      // anonymised has to be here for the card to know whether it may show
+      // the real title; it was missing before, which is exactly how an
+      // anonymised case ended up showing its real title on the card.
+      .select('title slug forum year partyRepresented opposingParty country outcome summary holding anonymised featuredImage practiceArea publishedAt')
       .populate([
         { path: 'featuredImage', select: MEDIA_FIELDS },
         // The template's case cards carry a category line under the title.

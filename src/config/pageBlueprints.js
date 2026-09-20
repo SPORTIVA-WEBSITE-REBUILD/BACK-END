@@ -64,24 +64,54 @@ const detailHero = (parent, hint) => ({
 
 const consultation = {
   key: 'consultation',
-  label: 'Free consultation form',
-  hint: 'Enquiry form over a background image. Submissions arrive in Enquiries.',
+  label: 'Talk to a Lawyer panel',
+  hint: 'A contact panel beside an enquiry form. Submissions arrive in Enquiries; the '
+    + 'phone, email and address shown come from Settings, not from this form.',
   fields: {
-    subheading: 'Small heading',
-    heading: 'Heading',
-    image: 'Background image',
-    cta: { label: 'Submit button', labelOnly: true, default: { label: 'Send message' } },
+    // Renders above the two-column layout as the section's own centred
+    // heading (matching "Our Team"), not inside the left column — see
+    // "Free consultation" in design-direction.md.
+    subheading: { label: 'Section eyebrow', default: 'GET IN TOUCH' },
+    heading: { label: 'Left column heading', default: 'Reliable Solutions for Your Legal Matters' },
+    body: {
+      label: 'Supporting copy',
+      type: 'textarea',
+      default: 'We follow a clear, step by step process to keep every client informed from '
+        + 'first contact to resolution. Reach out and a member of our team will respond '
+        + 'within one business day.',
+    },
+    // A short pull quote beside the contact details. Left with no default —
+    // "our record speaks for itself" is not a line to put in the firm's
+    // mouth before it has actually said it. Empty hides the block entirely.
+    value: { label: 'Pull quote (optional)', type: 'textarea' },
+    cta: { label: 'Submit button', labelOnly: true, default: { label: 'Send Message' } },
     labels: {
       label: 'Form text',
       keys: {
-        name: { label: 'Name placeholder', default: 'Your Name' },
-        email: { label: 'Email placeholder', default: 'Your Email' },
-        subject: { label: 'Subject placeholder', default: 'Subject' },
-        message: { label: 'Message placeholder', default: 'Message' },
+        sectionHeading: { label: 'Section heading', default: 'Contact Us' },
+        name: { label: 'Name field caption', default: 'Name:' },
+        namePlaceholder: { label: 'Name placeholder', default: 'Name' },
+        email: { label: 'Email field caption', default: 'Email:' },
+        emailPlaceholder: { label: 'Email placeholder', default: 'Email address' },
+        phone: { label: 'Phone field caption', default: 'Phone:' },
+        phonePlaceholder: { label: 'Phone placeholder', default: 'Phone number' },
+        subject: { label: 'Subject field caption', default: 'Subject:' },
+        subjectPlaceholder: { label: 'Subject placeholder', default: 'Subject' },
+        message: { label: 'Message field caption', default: 'Message:' },
+        messagePlaceholder: { label: 'Message placeholder', default: 'Tell Us Your Case' },
         sending: { label: 'While sending', default: 'Sending…' },
-        success: { label: 'Sent message', default: 'Thank you — your message has reached us. We will be in touch shortly.' },
+        success: { label: 'Sent message', default: 'Thank you for reaching out. A member of our legal team will contact you shortly.' },
+        successHeading: { label: 'Sent message heading', default: 'Inquiry Submitted' },
+        resetLabel: { label: 'Send another message button', default: 'Send another message' },
         error: { label: 'Failure message', default: 'We could not send your message. Please try again.' },
         rateLimited: { label: 'Too many messages', default: 'You have sent several messages already. Please try again later.' },
+        callUs: { label: 'Phone row label', default: 'Call Us' },
+        emailUs: { label: 'Email row label', default: 'Email Us' },
+        headquarters: { label: 'Address row label', default: 'Headquarters' },
+        availability: {
+          label: 'Availability line',
+          default: 'Available for consultations across our represented jurisdictions.',
+        },
       },
     },
   },
@@ -124,7 +154,7 @@ export const PAGE_BLUEPRINTS = [
         label: 'Menu button',
         hint: 'The highlighted button at the end of the main menu.',
         fields: {
-          cta: { label: 'Button', default: { label: 'Free Consultation', href: '/contact' } },
+          cta: { label: 'Button', default: { label: 'Talk to a Lawyer', href: '/contact' } },
           labels: {
             label: 'Menu text',
             keys: { menuToggle: { label: 'Mobile menu button', default: 'Menu' } },
@@ -136,11 +166,13 @@ export const PAGE_BLUEPRINTS = [
         label: 'Newsletter band',
         hint: 'The sign-up strip above the footer on every page except Contact. Sign-ups arrive in Subscribers.',
         fields: {
+          subheading: { label: 'Eyebrow label', default: 'STAY INFORMED' },
           heading: { label: 'Heading', default: 'Subscribe to our Newsletter' },
           labels: {
             label: 'Form text',
             keys: {
-              placeholder: { label: 'Email placeholder', default: 'Enter email address' },
+              emailLabel: { label: 'Email field caption', default: 'Email:' },
+              placeholder: { label: 'Email placeholder', default: 'Email address' },
               submit: { label: 'Button', default: 'Subscribe' },
               success: { label: 'Signed-up message', default: 'Thank you for subscribing.' },
               error: { label: 'Failure message', default: 'Please enter a valid email address.' },
@@ -464,7 +496,7 @@ export const PAGE_BLUEPRINTS = [
         fields: {
           heading: { label: 'Heading', default: 'How Can We Help !' },
           body: { label: 'Text', type: 'textarea' },
-          cta: { label: 'Button', default: { label: 'Request Free Consultation', href: '/contact' } },
+          cta: { label: 'Button', default: { label: 'Talk to a Lawyer', href: '/contact' } },
         },
       },
       {
@@ -561,7 +593,7 @@ export const PAGE_BLUEPRINTS = [
         fields: {
           heading: 'Heading',
           body: { label: 'Text', type: 'textarea' },
-          cta: { label: 'Button', default: { label: 'Free Consultation', href: '/contact' } },
+          cta: { label: 'Button', default: { label: 'Talk to a Lawyer', href: '/contact' } },
         },
       },
     ],
@@ -736,10 +768,37 @@ export const PAGE_BLUEPRINTS = [
       {
         key: 'form',
         label: 'Contact form',
+        hint: 'The two-panel card: your words and the firm\'s contact details on the left, the enquiry form on the right. Phone, email and address come from Settings.',
         fields: {
+          heading: { label: 'Left panel heading', default: 'Reliable Solutions for Your Legal Matters' },
+          value: { label: 'Pull quote (optional)', type: 'textarea' },
           cta: { label: 'Submit button', labelOnly: true, default: { label: 'Send Message' } },
           body: { label: 'Notice below the form', type: 'textarea' },
-          labels: consultation.fields.labels,
+          labels: {
+            label: 'Form text',
+            keys: {
+              name: { label: 'Name field caption', default: 'Name:' },
+              namePlaceholder: { label: 'Name placeholder', default: 'Name' },
+              email: { label: 'Email field caption', default: 'Email:' },
+              emailPlaceholder: { label: 'Email placeholder', default: 'Email address' },
+              phone: { label: 'Phone field caption', default: 'Phone:' },
+              phonePlaceholder: { label: 'Phone placeholder', default: 'Phone number' },
+              subject: { label: 'Subject field caption', default: 'Subject:' },
+              subjectPlaceholder: { label: 'Subject placeholder', default: 'Subject' },
+              message: { label: 'Message field caption', default: 'Message:' },
+              messagePlaceholder: { label: 'Message placeholder', default: 'Tell Us Your Case' },
+              sending: { label: 'While sending', default: 'Sending…' },
+              success: { label: 'Sent message', default: 'Thank you for reaching out. A member of our legal team will contact you shortly.' },
+              successHeading: { label: 'Sent message heading', default: 'Inquiry Submitted' },
+              resetLabel: { label: 'Send another message button', default: 'Send another message' },
+              error: { label: 'Failure message', default: 'We could not send your message. Please try again.' },
+              rateLimited: { label: 'Too many messages', default: 'You have sent several messages already. Please try again later.' },
+              callUs: { label: 'Phone row label', default: 'Call Us' },
+              emailUs: { label: 'Email row label', default: 'Email Us' },
+              headquarters: { label: 'Address row label', default: 'Headquarters' },
+              availability: { label: 'Availability line', default: 'Available for consultations across our represented jurisdictions.' },
+            },
+          },
         },
       },
     ],
