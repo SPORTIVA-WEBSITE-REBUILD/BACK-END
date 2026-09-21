@@ -162,6 +162,23 @@ export const PAGE_BLUEPRINTS = [
         },
       },
       {
+        key: 'articlesPopup',
+        label: 'Latest articles popup',
+        hint: 'A prompt shown once per visit, a few seconds after the page loads, listing the two newest articles. Hidden on the Insights pages.',
+        fields: {
+          subheading: { label: 'Eyebrow label', default: 'LATEST INSIGHTS' },
+          heading: { label: 'Heading', default: 'New from our lawyers' },
+          cta: { label: 'Button', default: { label: 'View All Insights', href: '/insights' } },
+          labels: {
+            label: 'Popup text',
+            keys: {
+              readMore: { label: 'Article link', default: 'Read more' },
+              close: { label: 'Close button (screen readers)', default: 'Close' },
+            },
+          },
+        },
+      },
+      {
         key: 'newsletter',
         label: 'Newsletter band',
         hint: 'The sign-up strip above the footer on every page except Contact. Sign-ups arrive in Subscribers.',
@@ -291,7 +308,7 @@ export const PAGE_BLUEPRINTS = [
       {
         key: 'hero',
         label: 'Hero banner',
-        hint: 'Full-screen banner at the top of the home page.',
+        hint: 'Banner at the top of the home page.',
         fields: {
           subheading: 'Small heading',
           heading: { label: 'Heading', hint: 'The rotating words are typed straight after this text.' },
@@ -299,8 +316,13 @@ export const PAGE_BLUEPRINTS = [
             label: 'Rotating words',
             singular: 'Word',
             max: 8,
-            hint: 'Each word can have its own background, which fades in as the word is typed. Words without one show the main background image.',
-            fields: { title: 'Word or phrase', image: 'Background for this word, e.g. a map' },
+            hint: 'Each word can have its own background, which fades in as the word appears. A slide may also carry its own small heading and paragraph; leave them blank to keep the hero\'s main ones.',
+            fields: {
+              title: 'Word or phrase',
+              value: 'Small heading for this slide (optional)',
+              text: 'Paragraph for this slide (optional)',
+              image: 'Background for this word, e.g. a photograph',
+            },
           },
           value: { label: 'Pause on each word (milliseconds)', default: '2000' },
           body: { label: 'Text', type: 'textarea' },
@@ -409,31 +431,28 @@ export const PAGE_BLUEPRINTS = [
       hero(),
       {
         key: 'intro',
-        label: 'Introduction',
+        label: 'Opening paragraph',
+        hint: 'The lead paragraph at the top of the About page.',
         fields: {
           subheading: 'Small heading',
           heading: 'Heading',
           body: { label: 'Text', type: 'textarea' },
-          image: 'Image',
-          video: { label: 'Video link', hint: 'A YouTube or Vimeo address. Leave empty to hide the play button.' },
-          items: {
-            label: 'Tabs',
-            singular: 'Tab',
-            max: 4,
-            fields: { title: 'Tab name', text: { label: 'Tab text', type: 'textarea' } },
-          },
         },
       },
       {
-        key: 'experience',
-        label: 'Years of experience badge',
+        key: 'sections',
+        label: 'Topics',
+        hint: 'One block per topic, in order: a heading with its paragraph beside it.',
         fields: {
-          value: { label: 'Number', hint: 'Counts up when scrolled into view, e.g. 40' },
-          heading: 'Caption',
+          items: {
+            label: 'Topics',
+            singular: 'Topic',
+            max: 12,
+            fields: { title: 'Heading', text: { label: 'Paragraph', type: 'textarea' } },
+          },
         },
       },
       consultation,
-      testimonials,
     ],
   },
   {
