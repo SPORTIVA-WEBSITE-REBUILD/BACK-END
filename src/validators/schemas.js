@@ -246,6 +246,7 @@ export const settingsSchema = z.object({
   contact: z.object({
     address: z.string().max(300).optional(),
     phone: z.string().max(60).optional(),
+    phone2: z.string().max(60).optional(),
     email: z.string().trim().toLowerCase().email().or(z.literal('')).optional(),
     mapUrl: z.string().max(600).optional(),
     website: z.string().trim().max(300).optional(),

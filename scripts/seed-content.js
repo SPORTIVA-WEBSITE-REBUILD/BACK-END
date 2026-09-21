@@ -23,6 +23,7 @@ import Service from '../src/models/Service.js';
 import Lawyer from '../src/models/Lawyer.js';
 import Category from '../src/models/Category.js';
 import CaseModel from '../src/models/Case.js';
+import Navigation from '../src/models/Navigation.js';
 import { slugify } from '../src/lib/slug.js';
 import { cleanHtml } from '../src/lib/sanitize.js';
 
@@ -40,8 +41,11 @@ const demoTeam = !process.argv.includes('--no-demo-team');
  * halved. Pending the firm's sign-off — see FRONT-END/docs/firm-review-required.md.
  */
 
-const ABOUT_INTRO = 'A boutique sports law practice. We act for players, coaches, clubs and '
+const OLD_ABOUT_INTRO = 'A boutique sports law practice. We act for players, coaches, clubs and '
   + 'federations across Africa, on every legal question the sports industry raises.';
+
+const ABOUT_INTRO = 'A boutique sports law practice. We act for players, coaches, clubs, agencies, and '
+  + 'federations across Africa and beyond on every legal question the sports industry raises.';
 
 const ABOUT_TEAM = 'Our lawyers work across all of the firm\'s practice areas, advising '
   + 'international federations, national associations, football and basketball clubs, licensed '
@@ -124,6 +128,14 @@ const SERVICES = [
     body: '<p>Development of compliant cyber security and data protection policies. IP protection '
       + 'of sports software and apps, and development of the attendant transaction documents.</p>',
   },
+  {
+    title: 'Anti-Doping',
+    icon: 'flaticon-shield',
+    summary: 'Advising athletes, clubs, and federations on anti-doping rules, disciplinary '
+      + 'proceedings, and regulatory compliance.',
+    body: '<p>Advising athletes, clubs, and federations on anti-doping rules, disciplinary '
+      + 'proceedings, and regulatory compliance.</p>',
+  },
 ];
 
 const TEAM = [
@@ -203,6 +215,12 @@ async function main() {
   }
   if (!settings.copyrightText) {
     settings.copyrightText = `© ${new Date().getFullYear()} PCN Sportiva LP. All rights reserved.`;
+  }
+  // The firm's numbers: replaces the old single seeded number only while it is
+  // still there, so a number an administrator has since typed is left alone.
+  if (settings.contact?.phone === '+234 704 482 2774') {
+    settings.contact.phone = '+1 (740) 819-2004';
+    settings.contact.phone2 = '+234 704 995 4119';
   }
   if (JSON.stringify(settings.toObject()) !== before) {
     await settings.save();
@@ -388,6 +406,8 @@ async function main() {
         + 'and expertise to match their resources.',
       to: ABOUT_TEAM,
     },
+    { slug: 'home', key: 'hero', field: 'body', from: OLD_ABOUT_INTRO, to: ABOUT_INTRO },
+    { slug: 'about', key: 'intro', field: 'body', from: OLD_ABOUT_INTRO, to: ABOUT_INTRO },
     {
       slug: 'home',
       key: 'hero',
@@ -610,33 +630,46 @@ async function main() {
     report.created.push(label);
   }
 
-  /* --- hero slides: the drawn map, then the two photographs --- */
+  /* --- hero slides: four event photographs, in this order --- */
 
   /*
-   * Three slides behind one fixed heading. The first carries no image on
-   * purpose — an item with no media is the front end's cue to draw its inline
-   * SVG map instead of painting a background.
-   *
-   * The photographs are local files under FRONT-END/public/hero, so their URLs
+   * One slide per photograph, each with its own phrase, small heading and
+   * paragraph. The files are local, under FRONT-END/public/hero, so their URLs
    * have no /upload/ segment; thumb() and preview() pass those through
    * untouched, which means this runs without a Cloudinary account.
    */
   const heroMedia = [
     {
-      publicId: 'hero-forum',
-      secureUrl: '/hero/hero-forum.jpg',
+      publicId: 'hero-acfta',
+      secureUrl: '/hero/hero-acfta.jpg',
       resourceType: 'image',
       width: 1920,
       height: 1080,
-      alt: 'Pius Ndubuokwu speaking to Nigerian broadcast media at the Football Law Annual Moot.',
+      alt: 'Three guests at the ACFTA Fest press conference, one holding the festival bag.',
     },
     {
-      publicId: 'hero-gift',
-      secureUrl: '/hero/hero-gift.jpg',
+      publicId: 'hero-table',
+      secureUrl: '/hero/hero-table.jpg',
       resourceType: 'image',
       width: 1920,
       height: 1080,
-      alt: 'A certificate of appreciation presented at the Football Law Annual Moot.',
+      alt: 'Delegates in conversation around a table at an industry event.',
+    },
+    {
+      publicId: 'hero-crowd',
+      secureUrl: '/hero/hero-crowd.jpg',
+      resourceType: 'image',
+      width: 1920,
+      height: 1080,
+      alt: 'Conference delegates standing in the audience.',
+    },
+    {
+      publicId: 'hero-podium',
+      secureUrl: '/hero/hero-podium.jpg',
+      resourceType: 'image',
+      width: 1920,
+      height: 1080,
+      alt: 'A member of the firm speaking at a conference podium.',
     },
   ];
 
@@ -652,27 +685,39 @@ async function main() {
     heroMediaIds[m.publicId] = doc._id;
   }
 
-  /*
-   * The map slide is the firm's own artwork, not a drawing made in code. The
-   * concentric rings over Nigeria are painted into the image, which is why they
-   * hold their position on the landmass and never change size: the motion is
-   * the hero's own drift and parallax moving the whole layer.
-   */
-  const mapMedia = await Media.findOne({ publicId: 'pcn-sportiva/hero-beyond' });
-  if (!mapMedia) report.skipped.push('media: pcn-sportiva/hero-beyond (missing)');
-
   const heroSlides = [
-    { title: 'the continent', image: mapMedia?._id ?? null },
-    { title: 'every forum', image: heroMediaIds['hero-forum'] },
-    { title: 'every border', image: heroMediaIds['hero-gift'] },
+    {
+      title: 'every event',
+      value: 'Recognition',
+      text: 'We are recognised at major sports and trade events across the continent, advising the people and organisations that shape the industry.',
+      image: heroMediaIds['hero-acfta'],
+    },
+    {
+      title: 'the table',
+      value: 'Client Relationships',
+      text: 'Close, ongoing relationships mean we advise with full knowledge of our clients\' goals, not only their latest dispute.',
+      image: heroMediaIds['hero-table'],
+    },
+    {
+      title: 'the room',
+      value: 'Industry Presence',
+      text: 'We represent clients across jurisdictions and forums, from national tribunals to international bodies, and we are present where decisions are made.',
+      image: heroMediaIds['hero-crowd'],
+    },
+    {
+      title: 'the stage',
+      value: 'Thought Leadership',
+      text: 'We contribute to the discussion of sports law and regulation, speaking on the rules that govern transfers, disputes and governance.',
+      image: heroMediaIds['hero-podium'],
+    },
   ];
 
   const home = await Page.findOne({ slug: 'home' });
   const heroSection = home?.sections.find((s) => s.key === 'hero');
   if (heroSection) {
-    // Title *and* image: comparing titles alone would miss a slide that keeps
-    // its phrase but points at a different photograph.
-    const key = (i) => `${i.title}:${i.image ? String(i.image._id || i.image) : ''}`;
+    // Title, eyebrow, paragraph *and* image: comparing titles alone would miss
+    // a slide that keeps its phrase but points at a different photograph.
+    const key = (i) => `${i.title}:${i.value || ''}:${i.text || ''}:${i.image ? String(i.image._id || i.image) : ''}`;
     const current = (heroSection.items || []).map(key).join('|');
     const wanted = heroSlides.map(key).join('|');
     // So a second run is a no-op rather than an append.
@@ -685,6 +730,81 @@ async function main() {
     }
   } else {
     report.skipped.push('page: home hero slides (no hero section)');
+  }
+
+  /*
+   * The earlier stadium, forum and map slides are gone. Their media records go
+   * with them so the library does not keep entries for files that no longer
+   * exist; the map's Cloudinary asset itself is untouched.
+   */
+  const retired = await Media.deleteMany({
+    publicId: { $in: ['hero-forum', 'hero-gift', 'hero-border', 'pcn-sportiva/hero-beyond'] },
+  });
+  if (retired.deletedCount) report.created.push(`removed ${retired.deletedCount} retired hero media record(s)`);
+
+  /* --- About page: the firm's approved copy, verbatim --- */
+  const ABOUT_LEAD = "PCN SPORTIVA LP is a boutique sports law firm providing specialized and comprehensive legal services across Africa and internationally, with a practice dedicated to the evolving legal, regulatory, commercial and governance needs of the sports industry.";
+  const ABOUT_BLOCKS = [
+      {
+          "title": "Our Team and Clients",
+          "text": "Our team comprises experienced lawyers with expertise across a broad range of sports law and related practice areas. We provide bespoke, commercially focused and industry-specific legal advice to international football and basketball clubs, professional players and athletes, licensed coaches, licensed intermediaries, public agencies, sports rights holders, sports investors, sports technology companies, event management companies and other stakeholders within the sports ecosystem."
+      },
+      {
+          "title": "Our Services",
+          "text": "Our services cover a wide spectrum of sports-related matters, including sports dispute resolution and litigation, employment and contract matters, regulatory and disciplinary proceedings, player transfers and registrations, training compensation and solidarity contribution claims, sports governance and compliance, anti-doping, safeguarding and integrity matters, sports arbitration, boxing, e-sports and gaming, intellectual property, sports commercial transactions, sponsorship and endorsement agreements, sports investments, and sports-related corporate and advisory services."
+      },
+      {
+          "title": "Intellectual Property",
+          "text": "Our Intellectual Property practice supports clients in protecting, commercialising and enforcing intellectual property rights within the sports and entertainment industries, including matters relating to trademarks, branding, image rights, licensing, merchandising, content, sponsorship and other commercially valuable intellectual assets."
+      },
+      {
+          "title": "Representation",
+          "text": "We represent and advise clients before relevant international sports tribunals, federations, arbitration panels and other decision-making bodies, including proceedings involving football, basketball, boxing and other sporting disciplines. Our lawyers bring practical experience in navigating the rules and regulations of international and national sporting bodies, while providing strategic legal solutions tailored to the particular needs and resources of each client."
+      },
+      {
+          "title": "Thought Leadership and Access to Justice",
+          "text": "Beyond legal representation, PCN SPORTIVA LP is committed to contributing to the development of sports law and sports governance in Africa. We actively engage in thought leadership, professional education and industry development, regularly contributing to radio, television, national and international media, conferences, seminars and other industry platforms. We also undertake select pro bono matters in furtherance of access to justice and the development of the sports industry."
+      },
+      {
+          "title": "Looking Ahead",
+          "text": "As the sports industry continues to evolve through technology, commercialization and increasingly sophisticated regulatory frameworks, we remain committed to staying at the forefront of developments in sports law, governance, integrity, anti-doping, intellectual property, e-sports and other emerging areas of the sports business."
+      },
+      {
+          "title": "Our Mission",
+          "text": "Our ultimate mission is to provide comprehensive, integrated and commercially responsive sports legal advice and representation, combining specialized expertise, practical experience and a deep understanding of the sports industry to deliver solutions that enable our clients to protect their interests, manage risk and achieve their objectives."
+      }
+  ];
+  const aboutDoc = await Page.findOne({ slug: 'about' });
+  if (aboutDoc) {
+    let touched = false;
+    const lead = aboutDoc.sections.find((s) => s.key === 'intro');
+    // Replaced only while it still holds one of the seeded intros.
+    if (lead && (!lead.body || lead.body === OLD_ABOUT_INTRO || lead.body === ABOUT_INTRO)) {
+      lead.body = ABOUT_LEAD;
+      touched = true;
+    }
+    let topics = aboutDoc.sections.find((s) => s.key === 'sections');
+    if (!topics) {
+      aboutDoc.sections.push({ key: 'sections' });
+      topics = aboutDoc.sections[aboutDoc.sections.length - 1];
+    }
+    if (!topics.items || topics.items.length === 0) {
+      topics.items = ABOUT_BLOCKS;
+      touched = true;
+    }
+    if (touched) { await aboutDoc.save(); report.created.push('page: about copy'); }
+    else report.skipped.push('page: about copy');
+  }
+
+  /* --- navigation: About added after Home (header) and first (footer) --- */
+  for (const [location, at] of [['header', 1], ['footer', 0]]) {
+    const nav = await Navigation.findOne({ location });
+    if (nav && !nav.items.some((i) => i.href === '/about')) {
+      nav.items.splice(at, 0, { label: 'About', href: '/about', external: false, children: [] });
+      nav.items.forEach((item, i) => { item.order = i; });
+      await nav.save();
+      report.created.push(`navigation: About (${location})`);
+    }
   }
 
   /* --- the stock photograph, and the firm's own in its place --- */

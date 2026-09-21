@@ -13,6 +13,7 @@ const SiteSettingsSchema = new Schema(
     contact: {
       address: { type: String, trim: true, default: '' },
       phone: { type: String, trim: true, default: '' },
+      phone2: { type: String, trim: true, default: '' },
       email: { type: String, trim: true, lowercase: true, default: '' },
       mapUrl: { type: String, trim: true, default: '' },
       website: { type: String, trim: true, default: '' },
