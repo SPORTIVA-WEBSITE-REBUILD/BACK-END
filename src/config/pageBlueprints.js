@@ -417,10 +417,11 @@ export const PAGE_BLUEPRINTS = [
       {
         key: 'insights',
         label: 'Blog block',
-        hint: 'The three most recent articles are shown below this heading.',
+        hint: 'The three most recent articles are shown below this heading, with a button to the full Insights page.',
         fields: {
           subheading: 'Small heading',
           heading: 'Heading',
+          cta: { label: 'Button', default: { label: 'View All Insights', href: '/insights' } },
         },
       },
     ],
