@@ -379,10 +379,11 @@ export const PAGE_BLUEPRINTS = [
       {
         key: 'team',
         label: 'Attorneys block',
-        hint: 'Published team members are shown as flip cards.',
+        hint: 'The first three published team members are shown as cards, with a button to the full team page.',
         fields: {
           subheading: 'Small heading',
           heading: 'Heading',
+          cta: { label: 'Button', default: { label: 'View Our Full Team', href: '/lawyers' } },
         },
       },
       {
