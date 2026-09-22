@@ -136,6 +136,51 @@ const SERVICES = [
     body: '<p>Advising athletes, clubs, and federations on anti-doping rules, disciplinary '
       + 'proceedings, and regulatory compliance.</p>',
   },
+  {
+    title: 'Football Law',
+    icon: 'football-law',
+    summary: 'PCN Sportiva LP provides specialist legal and strategic counsel to football clubs, '
+      + 'players, coaches, agents, academies, federations and other stakeholders across the '
+      + 'global football industry.',
+    body: '<p>PCN Sportiva LP provides specialist legal and strategic counsel to football clubs, '
+      + 'players, coaches, agents, academies, federations and other stakeholders across the '
+      + 'global football industry.</p>'
+      + '<p>Our Football Law practice advises on the full spectrum of legal, regulatory and '
+      + 'commercial matters arising in the game, including player and coach contracts, '
+      + 'international transfers, registration matters, football agency, training compensation '
+      + 'and solidarity contributions, club governance, disciplinary proceedings, regulatory '
+      + 'compliance and commercial transactions.</p>'
+      + '<p>We also represent clients in complex domestic and international football disputes, '
+      + 'including proceedings before national and international football bodies, the FIFA '
+      + 'Football Tribunal and the Court of Arbitration for Sport (CAS).</p>'
+      + '<p>Combining industry knowledge with a practical understanding of the football '
+      + 'ecosystem, we help our clients structure transactions, protect their rights, resolve '
+      + 'disputes and navigate the increasingly complex regulatory framework governing modern '
+      + 'football.</p>',
+  },
+  {
+    title: 'Gaming, Betting & Esports',
+    icon: 'gaming-betting-esports',
+    summary: 'PCN Sportiva LP provides specialised legal and regulatory services across the '
+      + 'gaming, betting, lottery, casino, interactive gaming, and esports industries.',
+    body: '<p>PCN Sportiva LP provides specialised legal and regulatory services across the '
+      + 'gaming, betting, lottery, casino, interactive gaming, and esports industries. We advise '
+      + 'operators, esports organisations, teams, players, coaches, tournament organisers, '
+      + 'publishers, and commercial partners on the legal and commercial issues shaping these '
+      + 'rapidly evolving sectors.</p>'
+      + '<p>Our services cover gaming licences and regulatory compliance; state licensing and '
+      + 'interstate operations; corporate structuring and regulatory due diligence; esports '
+      + 'contracts and player representation; dispute resolution and arbitration; intellectual '
+      + 'property and brand protection; tournament and league advisory; sponsorship and '
+      + 'commercial agreements; data protection and technology law; taxation; governance; and '
+      + 'ongoing corporate compliance.</p>'
+      + '<p>We help clients enter and operate within regulated markets, obtain and maintain '
+      + 'necessary approvals, structure their businesses, protect their intellectual property, '
+      + 'manage regulatory and commercial risks, resolve disputes, and build legally sound and '
+      + 'sustainable ventures.</p>'
+      + '<p>Building, expanding, or operating in gaming, betting or esports? Let PCN Sportiva LP '
+      + 'provide the legal expertise to help you navigate the industry with confidence.</p>',
+  },
 ];
 
 const TEAM = [
