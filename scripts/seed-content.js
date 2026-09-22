@@ -129,12 +129,27 @@ const SERVICES = [
       + 'of sports software and apps, and development of the attendant transaction documents.</p>',
   },
   {
-    title: 'Anti-Doping',
+    title: 'Anti-Doping & Sports Integrity',
+    slug: 'anti-doping',
     icon: 'flaticon-shield',
-    summary: 'Advising athletes, clubs, and federations on anti-doping rules, disciplinary '
-      + 'proceedings, and regulatory compliance.',
-    body: '<p>Advising athletes, clubs, and federations on anti-doping rules, disciplinary '
-      + 'proceedings, and regulatory compliance.</p>',
+    summary: 'PCN Sportiva LP provides legal advisory and representation on anti-doping and '
+      + 'sports integrity matters.',
+    body: '<p>PCN Sportiva LP provides legal advisory and representation on anti-doping and '
+      + 'sports integrity matters, including:</p>'
+      + '<ol>'
+      + '<li><strong>Anti-Doping Representation:</strong> Representing athletes and players '
+      + 'before anti-doping tribunals and the Court of Arbitration for Sport (CAS).</li>'
+      + '<li><strong>Regulatory Compliance:</strong> Advising athletes, clubs and sports '
+      + 'organisations on applicable international anti-doping rules and regulations.</li>'
+      + '<li><strong>Clean Sport Education:</strong> Educating member associations, athletes and '
+      + 'sporting stakeholders on clean sport obligations.</li>'
+      + '<li><strong>Anti-Doping Advisory:</strong> Advising on the application and '
+      + 'implementation of relevant international anti-doping legislation, codes and '
+      + 'regulations.</li>'
+      + '<li><strong>Disciplinary Proceedings:</strong> Advising and representing clients in '
+      + 'investigations, disciplinary proceedings, sanctions and appeals arising from alleged '
+      + 'anti-doping rule violations.</li>'
+      + '</ol>',
   },
   {
     title: 'Football Law',
@@ -180,6 +195,29 @@ const SERVICES = [
       + 'sustainable ventures.</p>'
       + '<p>Building, expanding, or operating in gaming, betting or esports? Let PCN Sportiva LP '
       + 'provide the legal expertise to help you navigate the industry with confidence.</p>',
+  },
+  {
+    title: 'Intellectual Property Services',
+    icon: 'intellectual-property-services',
+    summary: 'PCN Sportiva LP provides comprehensive intellectual property services to '
+      + 'businesses, brands, creators, athletes, sports organisations and technology companies.',
+    body: '<p>PCN Sportiva LP provides comprehensive intellectual property services to '
+      + 'businesses, brands, creators, athletes, sports organisations and technology '
+      + 'companies.</p>'
+      + '<ol>'
+      + '<li><strong>Trademark &amp; Brand Protection:</strong> Protecting names, logos, brands '
+      + 'and other distinctive business assets.</li>'
+      + '<li><strong>Copyright &amp; Creative Rights:</strong> Advising on the protection and '
+      + 'commercial use of creative, artistic, literary and digital works.</li>'
+      + '<li><strong>IP Registration &amp; Portfolio Management:</strong> Managing the '
+      + 'registration, renewal and ongoing protection of intellectual property rights.</li>'
+      + '<li><strong>IP Licensing &amp; Commercialisation:</strong> Advising on the commercial '
+      + 'use, licensing and transfer of intellectual property assets.</li>'
+      + '<li><strong>International IP Protection:</strong> Advising clients on protecting their '
+      + 'intellectual property across multiple jurisdictions.</li>'
+      + '<li><strong>IP Advisory:</strong> Providing strategic advice on intellectual property '
+      + 'ownership, protection, management and commercial opportunities.</li>'
+      + '</ol>',
   },
 ];
 
@@ -281,7 +319,10 @@ async function main() {
 
   /* --- services --- */
   for (const [i, s] of SERVICES.entries()) {
-    const slug = slugify(s.title);
+    // Most services take their slug from their title. A couple whose title has
+    // since been reworded (Anti-Doping's, to "Anti-Doping & Sports Integrity")
+    // set `slug` explicitly instead, so their URL survives the rewording.
+    const slug = s.slug || slugify(s.title);
     await ensure(Service, { slug }, () => ({
       ...s, slug, body: cleanHtml(s.body), order: i, status,
     }), `service: ${s.title}`);
