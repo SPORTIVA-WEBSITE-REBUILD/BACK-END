@@ -188,7 +188,7 @@ export const PAGE_BLUEPRINTS = [
           labels: {
             label: 'Form text',
             keys: {
-              emailLabel: { label: 'Email field caption', default: 'Email:' },
+              emailLabel: { label: 'Email field name (screen readers)', default: 'Email' },
               placeholder: { label: 'Email placeholder', default: 'Email address' },
               submit: { label: 'Button', default: 'Subscribe' },
               success: { label: 'Signed-up message', default: 'Thank you for subscribing.' },
