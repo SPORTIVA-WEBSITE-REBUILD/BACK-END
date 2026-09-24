@@ -32,6 +32,8 @@ const CaseSchema = new Schema(
     // accident. The dashboard warns explicitly before this is turned off.
     anonymised: { type: Boolean, default: true },
     practiceArea: { type: Schema.Types.ObjectId, ref: 'Service' },
+    // The team members who worked on the matter, in the order they are credited.
+    authors: { type: [{ type: Schema.Types.ObjectId, ref: 'Lawyer' }], default: [] },
     featuredImage: { type: Schema.Types.ObjectId, ref: 'Media' },
     publishedAt: { type: Date },
     status: { type: String, enum: STATUS, default: 'draft' },
