@@ -14,10 +14,14 @@ const OPTIONS = {
     'b', 'i',
     'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'a', 'img', 'figure', 'figcaption',
     'table', 'thead', 'tbody', 'tr', 'th', 'td', 'hr',
+    // Footnote marker: an empty <sup data-fn="source">. The public site numbers
+    // it and builds the Notes list from the attribute.
+    'sup',
   ],
   allowedAttributes: {
     a: ['href', 'title', 'target', 'rel'],
     img: ['src', 'alt', 'title', 'width', 'height', 'loading'],
+    sup: ['data-fn', 'class'],
     '*': ['class'],
   },
   allowedSchemes: ['http', 'https', 'mailto', 'tel'],
