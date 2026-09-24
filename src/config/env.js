@@ -37,6 +37,14 @@ const env = {
     folder: process.env.CLOUDINARY_FOLDER || 'pcn-sportiva',
   },
 
+  mail: {
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 465,
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.MAIL_FROM || (process.env.SMTP_USER ? `PCN Sportiva Website <${process.env.SMTP_USER}>` : undefined),
+  },
+
   publicSiteUrl: process.env.PUBLIC_SITE_URL || 'http://localhost:5173',
 };
 
