@@ -168,7 +168,7 @@ export const PAGE_BLUEPRINTS = [
         fields: {
           subheading: { label: 'Eyebrow label', default: 'LATEST INSIGHTS' },
           heading: { label: 'Heading', default: 'New from our lawyers' },
-          cta: { label: 'Button', default: { label: 'View All Articles', href: '/insights' } },
+          cta: { label: 'Button', default: { label: 'View All Articles', href: '/articles' } },
           labels: {
             label: 'Popup text',
             keys: {
@@ -421,7 +421,7 @@ export const PAGE_BLUEPRINTS = [
         fields: {
           subheading: 'Small heading',
           heading: 'Heading',
-          cta: { label: 'Button', default: { label: 'View All Articles', href: '/insights' } },
+          cta: { label: 'Button', default: { label: 'View All Articles', href: '/articles' } },
         },
       },
     ],
@@ -487,9 +487,9 @@ export const PAGE_BLUEPRINTS = [
       },
       {
         key: 'insights',
-        label: 'Recent insights',
+        label: 'Recent articles',
         hint: 'Articles this team member wrote are previewed at the foot of the profile.',
-        fields: { heading: { label: 'Heading', default: 'Recent insights' } },
+        fields: { heading: { label: 'Heading', default: 'Recent articles' } },
       },
     ],
   },
