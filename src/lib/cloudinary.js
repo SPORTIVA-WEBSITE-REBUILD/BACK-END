@@ -36,7 +36,7 @@ const DELIVERY_HOSTS = new Set(
  * parsed and compared exactly, and the cloud name must be the FIRST path
  * segment, which is where Cloudinary actually puts it.
  */
-export function isOwnCloudinaryUrl(value, cloudName = env.cloudinary.cloudName) {
+export function isOwnCloudinaryUrl(value, cloudName = env.cloudinary.cloudName, requireHttps = true) {
   if (!value || !cloudName) return false;
 
   let url;
@@ -46,7 +46,14 @@ export function isOwnCloudinaryUrl(value, cloudName = env.cloudinary.cloudName) 
     return false;
   }
 
-  if (url.protocol !== 'https:') return false;
+  // secureUrl must be https — that is the one property its name promises.
+  // Cloudinary's own plain `url` field for the same asset is legitimately
+  // http by Cloudinary's own convention, so the persist check below asks for
+  // http-or-https there instead, while still requiring the same cloud and
+  // delivery host.
+  if (requireHttps ? url.protocol !== 'https:' : !['https:', 'http:'].includes(url.protocol)) {
+    return false;
+  }
   if (!DELIVERY_HOSTS.has(url.hostname.toLowerCase())) return false;
 
   const [first] = url.pathname.replace(/^\/+/, '').split('/');

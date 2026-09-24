@@ -29,8 +29,16 @@ export const persist = asyncHandler(async (req, res) => {
     throw ApiError.badRequest(`Unsupported file type: ${payload.format}`);
   }
   // Both URLs must genuinely be ours. Checking only secureUrl would leave `url`
-  // free to point anywhere, and it is the one some consumers read.
-  if (!isOwnCloudinaryUrl(payload.secureUrl) || !isOwnCloudinaryUrl(payload.url)) {
+  // free to point anywhere, and it is the one some consumers read. `url` is
+  // checked without the https requirement: it is Cloudinary's own non-secure
+  // field for the very same asset, legitimately returned as http by
+  // Cloudinary itself, on every account, not something a real upload could
+  // ever avoid — see the "plain http" test, which still covers someone
+  // passing an insecure URL as secureUrl, the field whose name promises https.
+  if (
+    !isOwnCloudinaryUrl(payload.secureUrl)
+    || !isOwnCloudinaryUrl(payload.url, env.cloudinary.cloudName, false)
+  ) {
     throw ApiError.badRequest('Media must be uploaded through the dashboard');
   }
 
