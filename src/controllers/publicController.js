@@ -217,6 +217,7 @@ export const getCase = asyncHandler(async (req, res) => {
     .populate([
       { path: 'featuredImage', select: MEDIA_FIELDS },
       { path: 'practiceArea', select: 'title slug' },
+      { path: 'authors', select: 'name slug role photo', populate: { path: 'photo', select: MEDIA_FIELDS } },
       { path: 'seo.ogImage', select: MEDIA_FIELDS },
     ])
     .lean();
@@ -248,10 +249,11 @@ export const listArticles = asyncHandler(async (req, res) => {
   const skip = (Number(page) - 1) * Number(limit);
   const [items, total] = await Promise.all([
     Article.find(filter)
-      .select('title slug excerpt featuredImage author category tags publishedAt readingMinutes')
+      .select('title slug excerpt featuredImage author authors category tags publishedAt readingMinutes')
       .populate([
         { path: 'featuredImage', select: MEDIA_FIELDS },
         { path: 'author', select: 'name slug role photo', populate: { path: 'photo', select: MEDIA_FIELDS } },
+        { path: 'authors', select: 'name slug role photo', populate: { path: 'photo', select: MEDIA_FIELDS } },
         { path: 'category', select: 'name slug' },
       ])
       .sort('-publishedAt')
@@ -280,6 +282,7 @@ export const getArticle = asyncHandler(async (req, res) => {
     .populate([
       { path: 'featuredImage', select: MEDIA_FIELDS },
       { path: 'author', select: 'name slug role photo bio', populate: { path: 'photo', select: MEDIA_FIELDS } },
+      { path: 'authors', select: 'name slug role photo bio', populate: { path: 'photo', select: MEDIA_FIELDS } },
       { path: 'category', select: 'name slug' },
       { path: 'seo.ogImage', select: MEDIA_FIELDS },
     ])
@@ -341,7 +344,7 @@ export const getLawyer = asyncHandler(async (req, res) => {
   if (!lawyer) throw ApiError.notFound('Lawyer not found');
 
   // Their most recent writing, previewed at the foot of the profile.
-  lawyer.articles = await Article.find({ ...PUBLISHED, author: lawyer._id })
+  lawyer.articles = await Article.find({ ...PUBLISHED, $or: [{ authors: lawyer._id }, { author: lawyer._id }] })
     .select('title slug excerpt featuredImage category publishedAt readingMinutes')
     .populate([{ path: 'featuredImage', select: MEDIA_FIELDS }, { path: 'category', select: 'name slug' }])
     .sort('-publishedAt')

@@ -90,12 +90,13 @@ router.use('/articles', resourceRouter({
   htmlFields: ['body'],
   slugFrom: 'title',
   searchFields: ['title', 'excerpt'],
-  populate: [{ path: 'author', select: 'name slug' }, { path: 'category', select: 'name slug' }],
-  listProjection: 'title slug excerpt status publishedAt author category updatedAt',
+  populate: [{ path: 'author', select: 'name slug' }, { path: 'authors', select: 'name slug' }, { path: 'category', select: 'name slug' }],
+  listProjection: 'title slug excerpt status publishedAt author authors category updatedAt',
   defaultSort: '-updatedAt',
   // Derived fields are computed server-side so every article is consistent
   // regardless of which client created it.
   beforeSave: (payload) => {
+    if (Array.isArray(payload.authors)) payload.author = payload.authors[0] || null;
     if (typeof payload.body === 'string') {
       payload.readingMinutes = readingMinutes(payload.body);
       if (!payload.excerpt) {

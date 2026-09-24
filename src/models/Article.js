@@ -10,6 +10,9 @@ const ArticleSchema = new Schema(
     excerpt: { type: String, trim: true, maxlength: 400, default: '' },
     body: { type: String, default: '' },
     author: { type: Schema.Types.ObjectId, ref: 'Lawyer' },
+    // Any number of team members can be credited. `author` is kept in step with
+    // the first of them so older code and existing links keep working.
+    authors: { type: [{ type: Schema.Types.ObjectId, ref: 'Lawyer' }], default: [] },
     category: { type: Schema.Types.ObjectId, ref: 'Category' },
     tags: { type: [String], default: [] },
     featuredImage: { type: Schema.Types.ObjectId, ref: 'Media' },
