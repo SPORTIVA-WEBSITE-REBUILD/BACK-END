@@ -17,6 +17,7 @@ import { blueprintFor, withDefaults } from '../config/pageBlueprints.js';
 import ApiError from '../lib/ApiError.js';
 import { toPlainText } from '../lib/sanitize.js';
 import asyncHandler from '../lib/asyncHandler.js';
+import { sendEnquiryEmail } from '../lib/mailer.js';
 import { ok, created, publicCache } from '../lib/respond.js';
 import env from '../config/env.js';
 
@@ -534,13 +535,21 @@ export const createEnquiry = asyncHandler(async (req, res) => {
   // Honeypot. Respond exactly as for a success so a bot learns nothing.
   if (website) return created(res, { received: true });
 
-  await Enquiry.create({
+  const enquiry = await Enquiry.create({
     ...payload,
     ipHash: crypto
       .createHash('sha256')
       .update(`${req.ip}:${env.accessSecret}`)
       .digest('hex'),
     userAgent: (req.get('user-agent') || '').slice(0, 400),
+  });
+
+  // Notify the firm. Awaited because a serverless function can be frozen as
+  // soon as it responds; it never throws, so the visitor still gets a success.
+  const settings = await SiteSettings.getSingleton();
+  await sendEnquiryEmail({
+    to: settings.enquiryRecipient || settings.contact?.email,
+    enquiry,
   });
 
   return created(res, { received: true });
