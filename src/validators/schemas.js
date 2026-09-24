@@ -195,7 +195,10 @@ export const lawyerSchema = z.object({
   photo: optionalObjectId,
   qualifications: z.array(z.string().max(160)).max(20).optional(),
   practiceAreas: z.array(objectId).max(20).optional(),
-  email: z.string().trim().toLowerCase().email().or(z.literal('')).optional(),
+  // One or more addresses, comma-separated (e.g. a personal and a department inbox).
+  email: z.string().trim().toLowerCase().max(200)
+    .refine((v) => v === '' || v.split(',').every((e) => z.string().trim().email().safeParse(e).success), 'Enter valid email addresses separated by commas')
+    .optional(),
   phone: z.string().max(40).optional(),
   socials: socialLinks.optional(),
   order: z.number().int().min(0).max(999).optional(),
