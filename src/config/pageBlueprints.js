@@ -164,11 +164,11 @@ export const PAGE_BLUEPRINTS = [
       {
         key: 'articlesPopup',
         label: 'Latest articles popup',
-        hint: 'A prompt shown once per visit, a few seconds after the page loads, listing the two newest articles. Hidden on the Insights pages.',
+        hint: 'A prompt shown once per visit, a few seconds after the page loads, listing the two newest articles. Hidden on the Articles pages.',
         fields: {
           subheading: { label: 'Eyebrow label', default: 'LATEST INSIGHTS' },
           heading: { label: 'Heading', default: 'New from our lawyers' },
-          cta: { label: 'Button', default: { label: 'View All Insights', href: '/insights' } },
+          cta: { label: 'Button', default: { label: 'View All Articles', href: '/insights' } },
           labels: {
             label: 'Popup text',
             keys: {
@@ -417,11 +417,11 @@ export const PAGE_BLUEPRINTS = [
       {
         key: 'insights',
         label: 'Blog block',
-        hint: 'The three most recent articles are shown below this heading, with a button to the full Insights page.',
+        hint: 'The three most recent articles are shown below this heading, with a button to the full Articles page.',
         fields: {
           subheading: 'Small heading',
           heading: 'Heading',
-          cta: { label: 'Button', default: { label: 'View All Insights', href: '/insights' } },
+          cta: { label: 'Button', default: { label: 'View All Articles', href: '/insights' } },
         },
       },
     ],
@@ -621,7 +621,7 @@ export const PAGE_BLUEPRINTS = [
   },
   {
     slug: 'insights',
-    title: 'Insights',
+    title: 'Articles',
     sections: [
       hero(),
       {
