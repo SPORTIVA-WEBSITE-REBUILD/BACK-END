@@ -560,7 +560,7 @@ export const createEnquiry = asyncHandler(async (req, res) => {
 const SITEMAP_SECTIONS = [
   ['services', '/services', 0.7],
   ['cases', '/record', 0.8],
-  ['articles', '/insights', 0.8],
+  ['articles', '/articles', 0.8],
   ['lawyers', '/lawyers', 0.6],
   ['vacancies', '/careers', 0.6],
 ];
@@ -569,7 +569,7 @@ const SITEMAP_STATIC = [
   ['/', 1.0, 'weekly'],
   ['/services', 0.9, 'monthly'],
   ['/record', 0.9, 'weekly'],
-  ['/insights', 0.9, 'weekly'],
+  ['/articles', 0.9, 'weekly'],
   ['/about', 0.7, 'monthly'],
   ['/lawyers', 0.6, 'monthly'],
   ['/careers', 0.6, 'weekly'],
