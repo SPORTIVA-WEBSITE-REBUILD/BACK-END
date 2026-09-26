@@ -303,6 +303,7 @@ export const PAGE_BLUEPRINTS = [
   },
   {
     slug: 'home',
+    seo: { metaDescription: "A boutique sports law practice acting for players, coaches, clubs, agencies and federations across Africa and beyond." },
     title: 'Home',
     sections: [
       {
@@ -428,6 +429,7 @@ export const PAGE_BLUEPRINTS = [
   },
   {
     slug: 'about',
+    seo: { metaDescription: "PCN Sportiva LP is an international sports law firm advising athletes, clubs, federations and sports bodies on regulation, contracts, governance and disputes." },
     title: 'About',
     sections: [
       hero(),
@@ -459,6 +461,7 @@ export const PAGE_BLUEPRINTS = [
   },
   {
     slug: 'lawyers',
+    seo: { metaDescription: "Meet the PCN Sportiva LP team: sports lawyers, FIFA-licensed agents and advisers representing clients before FIFA, CAS and national tribunals." },
     title: 'Attorneys',
     sections: [
       hero(),
@@ -495,6 +498,7 @@ export const PAGE_BLUEPRINTS = [
   },
   {
     slug: 'services',
+    seo: { metaDescription: "Our practice areas: sports disputes, contracts and transfers, football law, anti-doping, player representation, gaming and esports, and intellectual property." },
     title: 'Services',
     sections: [
       hero(),
@@ -546,6 +550,7 @@ export const PAGE_BLUEPRINTS = [
   },
   {
     slug: 'record',
+    seo: { metaDescription: "A record of matters we have handled before the FIFA Football Tribunal, the Court of Arbitration for Sport and national forums, by forum, year and outcome." },
     title: 'Case Record',
     sections: [
       hero(),
@@ -621,6 +626,7 @@ export const PAGE_BLUEPRINTS = [
   },
   {
     slug: 'insights',
+    seo: { metaDescription: "Commentary and analysis on sports law from PCN Sportiva LP: football regulation, transfers, anti-doping, governance, and dispute resolution." },
     title: 'Articles',
     sections: [
       hero(),
@@ -684,6 +690,7 @@ export const PAGE_BLUEPRINTS = [
   },
   {
     slug: 'careers',
+    seo: { metaDescription: "Careers at PCN Sportiva LP. Current openings for lawyers, interns and professionals who want to build a practice in international sports law." },
     title: 'Careers',
     sections: [
       hero(),
@@ -765,6 +772,7 @@ export const PAGE_BLUEPRINTS = [
   },
   {
     slug: 'contact',
+    seo: { metaDescription: "Contact PCN Sportiva LP to discuss a sports law matter. Speak to a lawyer about contracts, transfers, regulatory proceedings or a dispute." },
     title: 'Contact',
     sections: [
       hero(),
@@ -826,6 +834,7 @@ export const PAGE_BLUEPRINTS = [
   },
   {
     slug: 'privacy-policy',
+    seo: { metaDescription: "How PCN Sportiva LP collects, uses and protects personal information submitted through this website. This site uses no cookies and no analytics trackers." },
     title: 'Privacy Policy',
     sections: [
       hero(),
@@ -916,10 +925,19 @@ export function withDefaults(slug, page) {
 
   const extra = (page?.sections || []).filter((s) => !known.has(s.key));
 
+  // Falls back to the blueprint's own description so every page ships a
+  // distinct one rather than nine copies of the site-wide default. Anything an
+  // administrator has typed in the dashboard wins.
+  const seo = { ...(page?.seo || {}) };
+  if (isEmpty(seo.metaDescription) && blueprint.seo?.metaDescription) {
+    seo.metaDescription = blueprint.seo.metaDescription;
+  }
+
   return {
     ...(page || {}),
     slug,
     title: page?.title || blueprint.title,
+    seo,
     sections: [...sections, ...extra],
   };
 }

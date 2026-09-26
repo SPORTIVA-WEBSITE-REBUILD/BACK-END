@@ -577,6 +577,7 @@ const SITEMAP_STATIC = [
   ['/lawyers', 0.6, 'monthly'],
   ['/careers', 0.6, 'weekly'],
   ['/contact', 0.7, 'yearly'],
+  ['/gallery', 0.5, 'monthly'],
   ['/privacy-policy', 0.3, 'yearly'],
 ];
 

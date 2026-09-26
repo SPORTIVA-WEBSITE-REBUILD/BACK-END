@@ -277,7 +277,7 @@ describe('sitemap and robots are served live', () => {
     expect(res.text).toContain('<?xml version="1.0"');
     expect(res.text).toContain('<urlset');
     expect(res.text).toContain('/record');
-    expect(res.text).toContain('/insights');
+    expect(res.text).toContain('/articles');
   });
 
   it('includes published content and updates without a redeploy', async () => {
@@ -290,7 +290,7 @@ describe('sitemap and robots are served live', () => {
     await agent.patch(`/api/articles/${created.body.data._id}/status`).send({ status: 'published' });
 
     const liveSitemap = await request(app).get('/api/public/sitemap.xml');
-    expect(liveSitemap.text).toContain('/insights/a-published-note');
+    expect(liveSitemap.text).toContain('/articles/a-published-note');
     expect(liveSitemap.text).toMatch(/<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/);
   });
 

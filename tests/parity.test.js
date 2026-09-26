@@ -383,6 +383,6 @@ describe('previews of stored content', () => {
     const service = (await request(app).get('/api/public/pages/service-detail')).body.data.sections;
     expect(by(service, 'relatedCases').heading).toBe('Related matters');
     const profile = (await request(app).get('/api/public/pages/lawyer-detail')).body.data.sections;
-    expect(by(profile, 'insights').heading).toBe('Recent insights');
+    expect(by(profile, 'insights').heading).toBe('Recent articles');
   });
 });
