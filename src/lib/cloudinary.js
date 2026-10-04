@@ -10,7 +10,10 @@ cloudinary.config({
 
 export const UPLOAD_POLICY = {
   maxBytes: 10 * 1024 * 1024, // 10 MB
-  allowedFormats: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'pdf'],
+  // heic/heif: what an iPhone camera produces by default. Cloudinary accepts
+  // them on upload and f_auto delivers jpg/webp to browsers, so nothing
+  // downstream has to understand the format.
+  allowedFormats: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'heic', 'heif', 'pdf'],
 };
 
 /**
