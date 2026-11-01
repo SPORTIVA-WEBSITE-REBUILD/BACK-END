@@ -103,6 +103,18 @@ Recognised for her multidisciplinary approach, Khayran combines legal expertise,
   },
 ];
 
+// The six default questions the brief lists, seeded with EMPTY answers —
+// renderWebinarEmail() and the /webinar page both skip a FAQ item whose
+// answer is empty, so these sit invisible until the firm fills one in.
+const DEFAULT_FAQ = [
+  'What will this cover?',
+  'How do I join?',
+  'Do I need to install anything?',
+  'Will there be a recording?',
+  'Can I ask questions?',
+  'Who do I contact for help?',
+].map((question, i) => ({ question, answer: '', order: i + 1 }));
+
 async function run() {
   await mongoose.connect(process.env.MONGODB_URI);
 
@@ -131,6 +143,7 @@ async function run() {
     webinar = await Webinar.create({
       ...baseFacts,
       speakers: speakersWithBio,
+      faq: DEFAULT_FAQ,
       webinarHeroEnabled: false, // OFF by default — an admin must switch it on
       webinarHeroEndsAt: new Date('2026-11-07T22:59:00Z'),
       registrationOpen: true,
@@ -157,6 +170,17 @@ async function run() {
       seedField(existing, 'bio', wanted.bio, `${wanted.name} — bio`);
     }
     webinar.markModified('speakers');
+
+    // Whole-array guard, since these are not individually named fields: any
+    // non-empty faq array means someone has already started on it — seeding
+    // over that would duplicate or clobber real content, so it is skipped
+    // entirely and reported, same as any other admin edit.
+    if (isEmptyValue(webinar.faq)) {
+      webinar.faq = DEFAULT_FAQ;
+      report.written.push('faq — seeded the six default questions (empty answers)');
+    } else {
+      report.skippedEdited.push('faq (not empty — left alone)');
+    }
 
     seedField(webinar, 'webinarHeroEnabled', false, 'webinarHeroEnabled (default; not changed unless still unset)');
 
