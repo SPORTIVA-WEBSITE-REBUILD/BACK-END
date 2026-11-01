@@ -83,6 +83,14 @@ describe('webinar confirmation email template', () => {
   });
 });
 
+describe('date/time formatting', () => {
+  it('matches the brief\'s literal format, with no comma after the weekday', () => {
+    const { html } = renderWebinarEmail(baseWebinar, registrant, 'confirmation');
+    expect(html).toContain('Fri 6 Nov 2026, 16:00 to 18:00 WAT');
+    expect(html).not.toContain('Fri, 6 Nov 2026');
+  });
+});
+
 describe('webinar reminder email', () => {
   it('is short and includes the meet link, date/time and calendar link, with no speaker/FAQ sections', () => {
     const { html } = renderWebinarEmail(baseWebinar, registrant, 'reminderDay');

@@ -34,9 +34,11 @@ function boldStars(escaped) {
 
 function formatDateTimeWat(date, timezone = 'Africa/Lagos') {
   if (!date) return '';
+  // Intl inserts a comma after a short weekday ("Fri, 6 Nov 2026"); stripped
+  // to match the brief's literal format ("Fri 6 Nov 2026").
   const datePart = new Intl.DateTimeFormat('en-GB', {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: timezone,
-  }).format(date);
+  }).format(date).replace(',', '');
   const timePart = new Intl.DateTimeFormat('en-GB', {
     hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
   }).format(date);
@@ -45,9 +47,10 @@ function formatDateTimeWat(date, timezone = 'Africa/Lagos') {
 
 function formatRangeWat(startsAt, endsAt, timezone = 'Africa/Lagos') {
   if (!startsAt) return '';
+  // Same comma strip as formatDateTimeWat above.
   const datePart = new Intl.DateTimeFormat('en-GB', {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: timezone,
-  }).format(startsAt);
+  }).format(startsAt).replace(',', '');
   const startTime = new Intl.DateTimeFormat('en-GB', {
     hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
   }).format(startsAt);
