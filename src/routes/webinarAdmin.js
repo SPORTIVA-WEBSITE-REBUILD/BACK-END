@@ -10,6 +10,7 @@ import { requireAuth, requirePermission } from '../middleware/auth.js';
 import { webinarAdminSchema, testEmailSchema, sendReminderSchema } from '../validators/webinar.js';
 import { sendWebinarEmail } from '../lib/webinarMailer.js';
 import { isRateLimited } from '../lib/mongoRateLimit.js';
+import { sendReminderBatch } from '../lib/webinarReminders.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -199,8 +200,11 @@ router.post('/send-reminder', requirePermission('webinar:write'), validate(sendR
   const webinar = await getSingleton();
   if (!webinar.startsAt) throw ApiError.badRequest('Set the webinar start date and time first');
 
+  // No time-window restriction here, unlike the scheduled cron job: an admin
+  // clicking this button is explicitly asking for it to go out now, for
+  // everyone eligible, not only those inside the automatic 23–25h/50–70min
+  // window — see src/lib/webinarReminders.js.
   const field = type === 'day' ? 'reminderDayBeforeSentAt' : 'reminderHourBeforeSentAt';
-  const kind = type === 'day' ? 'reminderDay' : 'reminderHour';
   const recipients = await WebinarRegistration.find({ emailStatus: 'SENT', [field]: { $exists: false } });
 
   if (dryRun) {
@@ -208,21 +212,7 @@ router.post('/send-reminder', requirePermission('webinar:write'), validate(sendR
     return ok(res, { dryRun: true, recipientCount: recipients.length });
   }
 
-  let sent = 0;
-  for (const registration of recipients) {
-    // eslint-disable-next-line no-await-in-loop
-    const result = await sendWebinarEmail({
-      webinar,
-      registrant: { name: registration.name, email: registration.email, reference: makeReference(registration._id) },
-      kind,
-    });
-    if (result.ok) {
-      registration[field] = new Date();
-      sent += 1;
-      // eslint-disable-next-line no-await-in-loop
-      await registration.save();
-    }
-  }
+  const { sent } = await sendReminderBatch({ webinar, recipients, type });
 
   noStore(res);
   return ok(res, { dryRun: false, recipientCount: recipients.length, sent });
