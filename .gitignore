@@ -20,3 +20,6 @@ coverage/
 
 # Netlify CLI local state and build artefacts
 .netlify/
+
+# Generated email previews (npm run email:preview, EMAIL_DRY_RUN)
+tmp/

@@ -40,10 +40,25 @@ const env = {
   mail: {
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT) || 465,
+    // SMTP_SECURE lets an operator force the choice explicitly (some
+    // providers want 587 with secure:true); unset, it falls back to the
+    // same port===465 convention the enquiry mailer already uses.
+    secure: process.env.SMTP_SECURE !== undefined
+      ? process.env.SMTP_SECURE === 'true'
+      : Number(process.env.SMTP_PORT) === 465,
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
     from: process.env.MAIL_FROM || (process.env.SMTP_USER ? `PCN Sportiva Website <${process.env.SMTP_USER}>` : undefined),
+    // Webinar emails only: a distinct from name/address and reply-to, so a
+    // "You're registered" email does not have to share the enquiry
+    // mailbox's identity. Falls back to the values above when unset.
+    fromName: process.env.MAIL_FROM_NAME || 'PCN Sportiva LP',
+    fromAddress: process.env.MAIL_FROM_ADDRESS || process.env.SMTP_USER,
+    replyTo: process.env.MAIL_REPLY_TO || process.env.SMTP_USER,
+    dryRun: process.env.EMAIL_DRY_RUN === 'true',
   },
+
+  turnstileSecretKey: process.env.TURNSTILE_SECRET_KEY || '',
 
   publicSiteUrl: process.env.PUBLIC_SITE_URL || 'http://localhost:5173',
 };
