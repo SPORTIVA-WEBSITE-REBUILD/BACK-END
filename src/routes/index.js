@@ -24,6 +24,8 @@ import enquiryRoutes from './enquiries.js';
 import subscriberRoutes from './subscribers.js';
 import commentRoutes from './comments.js';
 import resourceRouter from './resource.js';
+import webinarPublicRoutes from './webinarPublic.js';
+import webinarAdminRoutes from './webinarAdmin.js';
 
 import {
   pageSchema, serviceSchema, caseSchema,
@@ -39,6 +41,12 @@ router.use('/media', mediaRoutes);
 router.use('/enquiries', enquiryRoutes);
 router.use('/subscribers', subscriberRoutes);
 router.use('/comments', commentRoutes);
+// Public: GET /api/webinar, POST /api/webinar/register — never requires
+// auth, never returns meetUrl (see webinarPublic.js).
+router.use('/webinar', webinarPublicRoutes);
+// Admin: GET/PUT /api/admin/webinar, registrations, resend, reminders —
+// requireAuth is applied inside webinarAdmin.js itself.
+router.use('/admin/webinar', webinarAdminRoutes);
 router.use('/', settingsRoutes);
 
 // Which sections each built-in page has, and what its fields are called. The

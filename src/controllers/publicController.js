@@ -579,6 +579,7 @@ const SITEMAP_STATIC = [
   ['/contact', 0.7, 'yearly'],
   ['/gallery', 0.5, 'monthly'],
   ['/privacy-policy', 0.3, 'yearly'],
+  ['/webinar', 0.8, 'daily'],
 ];
 
 function xmlEscape(value = '') {

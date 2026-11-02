@@ -16,6 +16,13 @@
 [functions]
   node_bundler = "esbuild"
 
+# Runs every 10 minutes. Netlify's scheduler invokes this function directly —
+# the catch-all redirect below (which sends every ordinary HTTP path to the
+# api function) does not apply to a scheduled invocation, so the two do not
+# conflict. See netlify/functions/webinar-reminders.js.
+[functions."webinar-reminders"]
+  schedule = "*/10 * * * *"
+
 # The whole Express app is one function; every path goes to it.
 [[redirects]]
   from = "/*"

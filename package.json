@@ -14,7 +14,9 @@
     "create-admin": "node scripts/create-admin.js",
     "seed": "node scripts/seed.js",
     "import:firebase": "node scripts/import-firebase.js",
-    "seed:content": "node scripts/seed-content.js"
+    "seed:content": "node scripts/seed-content.js",
+    "seed:webinar": "node scripts/seed-webinar.js",
+    "email:preview": "node scripts/email-preview.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
