@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import net from 'node:net';
+import nodemailer from 'nodemailer';
 import { z } from 'zod';
 import Webinar from '../models/Webinar.js';
 import WebinarRegistration from '../models/WebinarRegistration.js';
@@ -39,6 +41,109 @@ router.put('/', requirePermission('webinar:write'), validate(webinarAdminSchema)
   await webinar.save();
   noStore(res);
   return ok(res, webinar);
+}));
+
+// -------------------------------------------------------------- smtp-check
+
+/**
+ * A single raw TCP connect attempt to host:port — proves or disproves
+ * reachability at the network level, before nodemailer, SMTP greetings or
+ * auth even enter the picture. Resolves on connect, on error, or on its own
+ * timeout, whichever comes first; the socket is always destroyed afterwards.
+ */
+function tcpProbe(host, port, timeoutMs) {
+  return new Promise((resolve) => {
+    const start = Date.now();
+    const socket = new net.Socket();
+    let settled = false;
+    const finish = (reachable, code) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve({ port, reachable, ms: Date.now() - start, code: code || null });
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => finish(true, null));
+    socket.once('timeout', () => finish(false, 'ETIMEDOUT'));
+    socket.once('error', (err) => finish(false, err.code || 'UNKNOWN'));
+    socket.connect(port, host);
+  });
+}
+
+/**
+ * Admin-only diagnostic: measures the SMTP path with real numbers instead
+ * of guessing from a bare "timeout" string. Never returns SMTP_PASS or any
+ * other secret value — only variable NAMES (present/absent) for those, and
+ * the genuinely non-secret values (host, port, secure, the two addresses).
+ */
+router.post('/smtp-check', requirePermission('webinar:write'), asyncHandler(async (req, res) => {
+  // Read process.env directly, not the cached env.mail object: env.js
+  // captures its values once at module load, which is accurate after a
+  // real cold start but is exactly the kind of staleness this diagnostic
+  // exists to rule out — this always reflects the config this invocation
+  // is actually running with, right now.
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT) || 465;
+  const secure = process.env.SMTP_SECURE !== undefined ? process.env.SMTP_SECURE === 'true' : port === 465;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const fromAddress = process.env.MAIL_FROM_ADDRESS || user;
+
+  const tcp = host
+    ? await Promise.all([465, 587].map((p) => tcpProbe(host, p, 15000)))
+    : [{ port: 465, reachable: false, ms: 0, code: 'NO_HOST_CONFIGURED' }, { port: 587, reachable: false, ms: 0, code: 'NO_HOST_CONFIGURED' }];
+
+  let verify = { ok: false, code: 'NOT_ATTEMPTED', ms: 0 };
+  if (host && user && pass) {
+    const start = Date.now();
+    const transport = nodemailer.createTransport({
+      host, port, secure,
+      auth: { user, pass },
+      connectionTimeout: 20000,
+      greetingTimeout: 20000,
+      socketTimeout: 20000,
+    });
+    try {
+      await transport.verify();
+      verify = { ok: true, code: null, ms: Date.now() - start };
+    } catch (err) {
+      verify = {
+        ok: false,
+        code: err.code || 'UNKNOWN',
+        smtpResponseCode: err.responseCode || null,
+        command: err.command || null,
+        ms: Date.now() - start,
+      };
+    }
+  } else {
+    verify.code = 'MISSING_HOST_OR_CREDENTIALS';
+  }
+
+  noStore(res);
+  return ok(res, {
+    tcp,
+    verify,
+    config: {
+      // Presence only for the things that could be secret-shaped; real
+      // values only for what is genuinely safe to show.
+      namesPresent: {
+        SMTP_HOST: Boolean(process.env.SMTP_HOST),
+        SMTP_PORT: Boolean(process.env.SMTP_PORT),
+        SMTP_SECURE: process.env.SMTP_SECURE !== undefined,
+        SMTP_USER: Boolean(process.env.SMTP_USER),
+        SMTP_PASS: Boolean(process.env.SMTP_PASS),
+        MAIL_FROM_NAME: Boolean(process.env.MAIL_FROM_NAME),
+        MAIL_FROM_ADDRESS: Boolean(process.env.MAIL_FROM_ADDRESS),
+        MAIL_REPLY_TO: Boolean(process.env.MAIL_REPLY_TO),
+        EMAIL_DRY_RUN: Boolean(process.env.EMAIL_DRY_RUN),
+      },
+      host: host || null,
+      port: port || null,
+      secure: Boolean(secure),
+      user: user || null,
+      fromAddress: fromAddress || null,
+    },
+  });
 }));
 
 // ------------------------------------------------------------ registrations

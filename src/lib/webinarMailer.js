@@ -21,14 +21,22 @@ import { buildWebinarIcs } from './ics.js';
  *    the number of emails sent per day; a webinar with a large guest list
  *    may need a paid plan with a higher limit.
  */
-function buildTransport() {
+// 15s, not the previous 8s: a live send just failed with "timeout" at 8s
+// with no other detail, which could mean the SMTP host is genuinely slow to
+// respond rather than unreachable — raising the ceiling here is how
+// smtp-check (below) tells those two apart with an actual measurement
+// instead of guessing from a bare "timeout" string. Still comfortably inside
+// Netlify's function time limit.
+export const TIMEOUT_MS = 15000;
+
+export function buildTransport() {
   const { host, port, secure, user, pass } = env.mail;
   return nodemailer.createTransport({
     host, port, secure,
     auth: { user, pass },
-    connectionTimeout: 8000,
-    greetingTimeout: 8000,
-    socketTimeout: 8000,
+    connectionTimeout: TIMEOUT_MS,
+    greetingTimeout: TIMEOUT_MS,
+    socketTimeout: TIMEOUT_MS,
   });
 }
 
@@ -91,10 +99,13 @@ export async function sendWebinarEmail({ webinar, registrant, kind = 'confirmati
     });
     return { ok: true };
   } catch (err) {
-    // Short, no connection details or secrets — this string is stored on the
-    // registration document and may be shown in the admin.
-    const message = String(err?.message || 'send failed').slice(0, 180);
-    console.error('[webinar-mail] send failed', err?.code || '', message);
-    return { ok: false, error: message };
+    // The CODE (ETIMEDOUT, ECONNREFUSED, ENOTFOUND, EAUTH…), not the
+    // message: a code is short, never contains connection details or
+    // secrets, and — unlike a free-text message — is something smtp-check
+    // (webinarAdmin.js) and this same catch block can be compared directly,
+    // so a stored emailError and a live diagnostic run mean the same thing.
+    const code = err?.code || err?.responseCode || 'UNKNOWN';
+    console.error('[webinar-mail] send failed', code);
+    return { ok: false, error: String(code).slice(0, 60) };
   }
 }

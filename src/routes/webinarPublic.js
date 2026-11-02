@@ -8,7 +8,7 @@ import validate from '../middleware/validate.js';
 import { webinarRegistrationSchema } from '../validators/webinar.js';
 import { isRateLimited } from '../lib/mongoRateLimit.js';
 import { clientIp } from '../lib/clientIp.js';
-import { sendWebinarEmail } from '../lib/webinarMailer.js';
+import { sendWebinarEmail, TIMEOUT_MS } from '../lib/webinarMailer.js';
 import env from '../config/env.js';
 
 const router = Router();
@@ -139,13 +139,19 @@ router.post('/register', validate(webinarRegistrationSchema), asyncHandler(async
   // best-effort step. Its own try/catch and timeout must never turn into an
   // error response to the visitor; they are already registered.
   try {
+    // The fallback race must sit ABOVE the mailer's own internal timeout
+    // (TIMEOUT_MS), not below or equal to it — the earlier 8000ms here
+    // against the mailer's then-8000ms internal timeout meant this generic
+    // 'timeout' string could win the race even when nodemailer was about to
+    // return a specific, more useful error code. This is now only a safety
+    // net for something outside nodemailer's own timeout handling entirely.
     const result = await Promise.race([
       sendWebinarEmail({
         webinar,
         registrant: { name: registration.name, email: registration.email, reference: makeReference(registration._id) },
         kind: 'confirmation',
       }),
-      new Promise((resolve) => setTimeout(() => resolve({ ok: false, error: 'timeout' }), 8000)),
+      new Promise((resolve) => setTimeout(() => resolve({ ok: false, error: 'ETIMEDOUT' }), TIMEOUT_MS + 2000)),
     ]);
 
     registration.emailAttempts = (registration.emailAttempts || 0) + 1;
