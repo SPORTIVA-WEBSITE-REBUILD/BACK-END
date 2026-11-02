@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { WEBINAR_ROLES } from '../models/WebinarRegistration.js';
+import { isValidCountry } from '../lib/countries.js';
 
 /**
  * Rejects a newline anywhere in a string — stops header injection via a
@@ -16,6 +18,15 @@ export const webinarRegistrationSchema = z.object({
     .refine(noNewlines, 'Name cannot contain line breaks'),
   email: z.string().trim().toLowerCase().max(200).email('Enter a valid email address')
     .refine(noNewlines, 'Email cannot contain line breaks'),
+  role: z.enum(WEBINAR_ROLES, { errorMap: () => ({ message: 'Select your role' }) }),
+  roleOther: z.string().trim().max(100).optional().default('')
+    .refine(noNewlines, 'This field cannot contain line breaks'),
+  nationality: z.string().trim().max(100)
+    .refine((v) => isValidCountry(v), 'Select a valid country'),
+  // Optional, basic validation only: digits, spaces and the usual phone
+  // punctuation, 7–20 characters — not a strict E.164 check.
+  phone: z.string().trim().max(30).optional().default('')
+    .refine((v) => v === '' || /^[0-9+()\-.\s]{7,30}$/.test(v), 'Enter a valid phone number'),
   consent: z.literal(true, { errorMap: () => ({ message: 'Please accept to continue' }) }),
   // Honeypot: a real visitor never sees or fills this field (hidden by CSS
   // off-screen, not display:none, which some bots skip). Any value here
@@ -23,7 +34,11 @@ export const webinarRegistrationSchema = z.object({
   website: z.string().optional(),
   // Present only when TURNSTILE_SECRET_KEY is configured; validated in the route.
   turnstileToken: z.string().optional(),
-}).strict();
+}).strict().superRefine((data, ctx) => {
+  if (data.role === 'Other' && !data.roleOther.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['roleOther'], message: 'Tell us your role' });
+  }
+});
 
 const speaker = z.object({
   name: z.string().trim().max(120).optional().default(''),

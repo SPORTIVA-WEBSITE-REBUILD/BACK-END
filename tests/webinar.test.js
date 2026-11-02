@@ -16,6 +16,11 @@ import { sendWebinarEmail } from '../src/lib/webinarMailer.js';
 
 const future = (hours) => new Date(Date.now() + hours * 60 * 60 * 1000);
 
+// Every POST /api/webinar/register test needs a valid role + nationality
+// now that both are required — spread this in and override only what the
+// test cares about, rather than repeating the two fields everywhere.
+const VALID_EXTRA = { role: 'Lawyer', nationality: 'Nigeria' };
+
 async function seedWebinar(overrides = {}) {
   await Webinar.deleteMany({});
   return Webinar.create({
@@ -70,7 +75,7 @@ describe('POST /api/webinar/register', () => {
     sendWebinarEmail.mockResolvedValue({ ok: true });
 
     const res = await request(app).post('/api/webinar/register').send({
-      name: 'Jane Doe', email: 'jane@example.com', consent: true,
+      name: 'Jane Doe', email: 'jane@example.com', consent: true, ...VALID_EXTRA,
     });
 
     expect(res.status).toBe(201);
@@ -80,12 +85,14 @@ describe('POST /api/webinar/register', () => {
     const saved = await WebinarRegistration.findOne({ email: 'jane@example.com' });
     expect(saved.emailStatus).toBe('SENT');
     expect(saved.emailSentAt).toBeTruthy();
+    expect(saved.role).toBe('Lawyer');
+    expect(saved.nationality).toBe('Nigeria');
   });
 
   it('rejects an invalid email with a 400 and sends no email', async () => {
     await seedWebinar();
     const res = await request(app).post('/api/webinar/register').send({
-      name: 'Jane', email: 'not-an-email', consent: true,
+      name: 'Jane', email: 'not-an-email', consent: true, ...VALID_EXTRA,
     });
     expect(res.status).toBe(400);
     expect(sendWebinarEmail).not.toHaveBeenCalled();
@@ -94,15 +101,81 @@ describe('POST /api/webinar/register', () => {
   it('rejects when consent is not true', async () => {
     await seedWebinar();
     const res = await request(app).post('/api/webinar/register').send({
-      name: 'Jane', email: 'jane@example.com', consent: false,
+      name: 'Jane', email: 'jane@example.com', consent: false, ...VALID_EXTRA,
     });
     expect(res.status).toBe(400);
+  });
+
+  it('rejects when role is missing or not one of the allowed values', async () => {
+    await seedWebinar();
+    const missing = await request(app).post('/api/webinar/register').send({
+      name: 'Jane', email: 'norole@example.com', consent: true, nationality: 'Nigeria',
+    });
+    expect(missing.status).toBe(400);
+
+    const invalid = await request(app).post('/api/webinar/register').send({
+      name: 'Jane', email: 'badrole@example.com', consent: true, nationality: 'Nigeria', role: 'CEO',
+    });
+    expect(invalid.status).toBe(400);
+  });
+
+  it('rejects when nationality is missing or not a real country', async () => {
+    await seedWebinar();
+    const missing = await request(app).post('/api/webinar/register').send({
+      name: 'Jane', email: 'nonat@example.com', consent: true, role: 'Lawyer',
+    });
+    expect(missing.status).toBe(400);
+
+    const invalid = await request(app).post('/api/webinar/register').send({
+      name: 'Jane', email: 'badnat@example.com', consent: true, role: 'Lawyer', nationality: 'Narnia',
+    });
+    expect(invalid.status).toBe(400);
+  });
+
+  it('role "Other" requires roleOther, and stores it', async () => {
+    await seedWebinar();
+    sendWebinarEmail.mockResolvedValue({ ok: true });
+
+    const missingOther = await request(app).post('/api/webinar/register').send({
+      name: 'Jane', email: 'other-missing@example.com', consent: true, role: 'Other', nationality: 'Kenya',
+    });
+    expect(missingOther.status).toBe(400);
+
+    const res = await request(app).post('/api/webinar/register').send({
+      name: 'Jane', email: 'other-ok@example.com', consent: true, role: 'Other', roleOther: 'Event organiser', nationality: 'Kenya',
+    });
+    expect(res.status).toBe(201);
+    const saved = await WebinarRegistration.findOne({ email: 'other-ok@example.com' });
+    expect(saved.role).toBe('Other');
+    expect(saved.roleOther).toBe('Event organiser');
+  });
+
+  it('accepts an optional phone number but validates its shape, and defaults to empty when omitted', async () => {
+    await seedWebinar();
+    sendWebinarEmail.mockResolvedValue({ ok: true });
+
+    const bad = await request(app).post('/api/webinar/register').send({
+      name: 'Jane', email: 'badphone@example.com', consent: true, ...VALID_EXTRA, phone: 'abc',
+    });
+    expect(bad.status).toBe(400);
+
+    const withPhone = await request(app).post('/api/webinar/register').send({
+      name: 'Jane', email: 'goodphone@example.com', consent: true, ...VALID_EXTRA, phone: '+234 801 234 5678',
+    });
+    expect(withPhone.status).toBe(201);
+    expect((await WebinarRegistration.findOne({ email: 'goodphone@example.com' })).phone).toBe('+234 801 234 5678');
+
+    const noPhone = await request(app).post('/api/webinar/register').send({
+      name: 'Jane', email: 'nophone@example.com', consent: true, ...VALID_EXTRA,
+    });
+    expect(noPhone.status).toBe(201);
+    expect((await WebinarRegistration.findOne({ email: 'nophone@example.com' })).phone).toBe('');
   });
 
   it('silently succeeds without creating a record when the honeypot is filled', async () => {
     await seedWebinar();
     const res = await request(app).post('/api/webinar/register').send({
-      name: 'Bot', email: 'bot@example.com', consent: true, website: 'http://spam.example',
+      name: 'Bot', email: 'bot@example.com', consent: true, website: 'http://spam.example', ...VALID_EXTRA,
     });
     expect(res.status).toBe(201);
     expect(res.body.data.ok).toBe(true);
@@ -113,10 +186,10 @@ describe('POST /api/webinar/register', () => {
   it('a second registration with the same (SENT) email does not duplicate and does not re-send', async () => {
     await seedWebinar();
     sendWebinarEmail.mockResolvedValue({ ok: true });
-    await request(app).post('/api/webinar/register').send({ name: 'Jane', email: 'dup@example.com', consent: true });
+    await request(app).post('/api/webinar/register').send({ name: 'Jane', email: 'dup@example.com', consent: true, ...VALID_EXTRA });
 
     sendWebinarEmail.mockClear();
-    const res = await request(app).post('/api/webinar/register').send({ name: 'Jane Again', email: 'dup@example.com', consent: true });
+    const res = await request(app).post('/api/webinar/register').send({ name: 'Jane Again', email: 'dup@example.com', consent: true, ...VALID_EXTRA });
 
     // 200, not 201: nothing new was created, same as the CLOSED case below.
     expect(res.status).toBe(200);
@@ -133,7 +206,7 @@ describe('POST /api/webinar/register', () => {
     });
     sendWebinarEmail.mockResolvedValue({ ok: true });
 
-    const res = await request(app).post('/api/webinar/register').send({ name: 'Retry Me', email: 'retry@example.com', consent: true });
+    const res = await request(app).post('/api/webinar/register').send({ name: 'Retry Me', email: 'retry@example.com', consent: true, ...VALID_EXTRA });
 
     expect(res.status).toBe(201);
     expect(sendWebinarEmail).toHaveBeenCalledTimes(1);
@@ -144,7 +217,7 @@ describe('POST /api/webinar/register', () => {
 
   it('rejects registration politely when registration is closed', async () => {
     await seedWebinar({ registrationOpen: false });
-    const res = await request(app).post('/api/webinar/register').send({ name: 'Jane', email: 'closed@example.com', consent: true });
+    const res = await request(app).post('/api/webinar/register').send({ name: 'Jane', email: 'closed@example.com', consent: true, ...VALID_EXTRA });
     expect(res.status).toBe(200); // not an error — a typed { ok:false } result
     expect(res.body.data.ok).toBe(false);
     expect(res.body.data.code).toBe('CLOSED');
@@ -156,7 +229,7 @@ describe('POST /api/webinar/register', () => {
     await seedWebinar();
     sendWebinarEmail.mockResolvedValue({ ok: false, error: '535 Authentication failed' });
 
-    const res = await request(app).post('/api/webinar/register').send({ name: 'Jane', email: 'smtpfail@example.com', consent: true });
+    const res = await request(app).post('/api/webinar/register').send({ name: 'Jane', email: 'smtpfail@example.com', consent: true, ...VALID_EXTRA });
 
     expect(res.status).toBe(201);
     expect(res.body.data.ok).toBe(true); // visitor-facing response hides the failure
@@ -172,7 +245,7 @@ describe('POST /api/webinar/register', () => {
       ok: false,
       error: 'connect ECONNREFUSED 10.0.0.5:465 smtp.zoho.com user=contact@pcnsportivalp.com pass=hunter2',
     });
-    await request(app).post('/api/webinar/register').send({ name: 'Jane', email: 'leak@example.com', consent: true });
+    await request(app).post('/api/webinar/register').send({ name: 'Jane', email: 'leak@example.com', consent: true, ...VALID_EXTRA });
     const saved = await WebinarRegistration.findOne({ email: 'leak@example.com' });
     // The route stores whatever string the mailer returns, so this guards the
     // mailer's own contract rather than the route — see webinarMailer.js,
@@ -185,7 +258,7 @@ describe('POST /api/webinar/register', () => {
     await seedWebinar();
     const spy = vi.spyOn(WebinarRegistration, 'create').mockRejectedValueOnce(new Error('Mongo is down'));
 
-    const res = await request(app).post('/api/webinar/register').send({ name: 'Jane', email: 'dbfail@example.com', consent: true });
+    const res = await request(app).post('/api/webinar/register').send({ name: 'Jane', email: 'dbfail@example.com', consent: true, ...VALID_EXTRA });
 
     expect(res.status).toBe(500);
     expect(sendWebinarEmail).not.toHaveBeenCalled();
@@ -195,7 +268,7 @@ describe('POST /api/webinar/register', () => {
   it('rejects a name or email containing a newline (header injection guard)', async () => {
     await seedWebinar();
     const res = await request(app).post('/api/webinar/register').send({
-      name: 'Jane\nBcc: attacker@evil.com', email: 'jane@example.com', consent: true,
+      name: 'Jane\nBcc: attacker@evil.com', email: 'jane@example.com', consent: true, ...VALID_EXTRA,
     });
     expect(res.status).toBe(400);
   });
@@ -228,6 +301,38 @@ describe('admin webinar routes require auth', () => {
     expect(res.status).toBe(200);
     expect(res.text).not.toMatch(/^=cmd|,=cmd|\n=cmd/);
     expect(res.text).toContain('cmd');
+  });
+
+  it('CSV export includes Role, Nationality and Phone columns, with "Other" expanded', async () => {
+    await WebinarRegistration.deleteMany({});
+    await WebinarRegistration.create([
+      { name: 'Jane', email: 'jane@example.com', consentAt: new Date(), role: 'Lawyer', nationality: 'Nigeria', phone: '+2348012345678' },
+      { name: 'Sam', email: 'sam@example.com', consentAt: new Date(), role: 'Other', roleOther: 'Event organiser', nationality: 'Kenya' },
+    ]);
+    const { agent } = await authedAgent();
+    const res = await agent.get('/api/admin/webinar/registrations.csv');
+    expect(res.status).toBe(200);
+    expect(res.text.split('\r\n')[0]).toBe('Name,Email,Role,Nationality,Phone,Registered at,Email status,Reference');
+    expect(res.text).toContain('Lawyer,Nigeria,'); // phone cell is tab-guarded since it starts with "+"
+    expect(res.text).toContain('+2348012345678');
+    expect(res.text).toContain('Other (Event organiser),Kenya');
+  });
+
+  it('filters registrations by role and by nationality', async () => {
+    await WebinarRegistration.deleteMany({});
+    await WebinarRegistration.create([
+      { name: 'Jane', email: 'jane2@example.com', consentAt: new Date(), role: 'Lawyer', nationality: 'Nigeria' },
+      { name: 'Sam', email: 'sam2@example.com', consentAt: new Date(), role: 'Law Student', nationality: 'Kenya' },
+    ]);
+    const { agent } = await authedAgent();
+
+    const byRole = await agent.get('/api/admin/webinar/registrations').query({ role: 'Lawyer' });
+    expect(byRole.body.data).toHaveLength(1);
+    expect(byRole.body.data[0].email).toBe('jane2@example.com');
+
+    const byNationality = await agent.get('/api/admin/webinar/registrations').query({ nationality: 'Kenya' });
+    expect(byNationality.body.data).toHaveLength(1);
+    expect(byNationality.body.data[0].email).toBe('sam2@example.com');
   });
 
   it('test-cleanup deletes only registrations matching the given domain, nothing else', async () => {

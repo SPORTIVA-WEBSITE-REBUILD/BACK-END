@@ -18,13 +18,13 @@ describe('client IP: x-nf-client-connection-ip is used for the webinar rate limi
       await request(app)
         .post('/api/webinar/register')
         .set('x-nf-client-connection-ip', sameIp)
-        .send({ name: `User ${i}`, email: `limit${i}@example.test`, consent: true });
+        .send({ name: `User ${i}`, email: `limit${i}@example.test`, consent: true, role: 'Lawyer', nationality: 'Nigeria' });
     }
 
     const sixth = await request(app)
       .post('/api/webinar/register')
       .set('x-nf-client-connection-ip', sameIp)
-      .send({ name: 'User 6', email: 'limit6@example.test', consent: true });
+      .send({ name: 'User 6', email: 'limit6@example.test', consent: true, role: 'Lawyer', nationality: 'Nigeria' });
 
     expect(sixth.status).toBe(429);
 
@@ -37,7 +37,7 @@ describe('client IP: x-nf-client-connection-ip is used for the webinar rate limi
     const other = await request(app)
       .post('/api/webinar/register')
       .set('x-nf-client-connection-ip', '198.51.100.9')
-      .send({ name: 'Fresh', email: 'fresh@example.test', consent: true });
+      .send({ name: 'Fresh', email: 'fresh@example.test', consent: true, role: 'Lawyer', nationality: 'Nigeria' });
 
     expect(other.status).not.toBe(429);
   });

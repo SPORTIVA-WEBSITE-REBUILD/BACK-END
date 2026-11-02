@@ -10,6 +10,7 @@ import { ok, noStore } from '../lib/respond.js';
 import validate from '../middleware/validate.js';
 import { requireAuth, requirePermission } from '../middleware/auth.js';
 import { webinarAdminSchema, testEmailSchema, sendReminderSchema } from '../validators/webinar.js';
+import { WEBINAR_ROLES } from '../models/WebinarRegistration.js';
 import { sendWebinarEmail, describeMailerError } from '../lib/webinarMailer.js';
 import { isRateLimited } from '../lib/mongoRateLimit.js';
 import { sendReminderBatch } from '../lib/webinarReminders.js';
@@ -166,11 +167,15 @@ const listQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   q: z.string().trim().max(120).optional(),
   status: z.enum(['PENDING', 'SENT', 'FAILED']).optional(),
+  role: z.enum(WEBINAR_ROLES).optional(),
+  nationality: z.string().trim().max(100).optional(),
 });
 
-function buildFilter({ q, status }) {
+function buildFilter({ q, status, role, nationality }) {
   const filter = {};
   if (status) filter.emailStatus = status;
+  if (role) filter.role = role;
+  if (nationality) filter.nationality = nationality;
   if (q) {
     const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const rx = new RegExp(safe, 'i');
@@ -180,8 +185,8 @@ function buildFilter({ q, status }) {
 }
 
 router.get('/registrations', requirePermission('webinar:read'), validate(listQuery, 'query'), asyncHandler(async (req, res) => {
-  const { page, limit, q, status } = req.validatedQuery;
-  const filter = buildFilter({ q, status });
+  const { page, limit, q, status, role, nationality } = req.validatedQuery;
+  const filter = buildFilter({ q, status, role, nationality });
   const skip = (page - 1) * limit;
 
   const [items, total, sent, failed, pending] = await Promise.all([
@@ -212,9 +217,12 @@ function csvCell(value) {
 
 router.get('/registrations.csv', requirePermission('webinar:read'), asyncHandler(async (req, res) => {
   const items = await WebinarRegistration.find({}).sort('-createdAt').lean();
-  const header = ['Name', 'Email', 'Registered at', 'Email status', 'Reference'];
+  const header = ['Name', 'Email', 'Role', 'Nationality', 'Phone', 'Registered at', 'Email status', 'Reference'];
   const rows = items.map((r) => [
-    r.name, r.email, r.createdAt?.toISOString() || '', r.emailStatus, makeReference(r._id),
+    r.name, r.email,
+    r.role === 'Other' && r.roleOther ? `Other (${r.roleOther})` : (r.role || ''),
+    r.nationality || '', r.phone || '',
+    r.createdAt?.toISOString() || '', r.emailStatus, makeReference(r._id),
   ].map(csvCell).join(','));
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');

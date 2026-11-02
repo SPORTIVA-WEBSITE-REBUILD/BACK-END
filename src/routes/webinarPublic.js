@@ -85,7 +85,7 @@ function makeReference(id) {
 }
 
 router.post('/register', validate(webinarRegistrationSchema), asyncHandler(async (req, res) => {
-  const { name, email, website, turnstileToken } = req.body;
+  const { name, email, role, roleOther, nationality, phone, website, turnstileToken } = req.body;
 
   // Honeypot: a real visitor never sees this field. Any value means a bot —
   // respond exactly as a human success would, so the bot learns nothing.
@@ -128,7 +128,10 @@ router.post('/register', validate(webinarRegistrationSchema), asyncHandler(async
       // PENDING or FAILED: retry the email below rather than creating a duplicate.
       registration = existing;
     } else {
-      registration = await WebinarRegistration.create({ name, email, consentAt: new Date() });
+      registration = await WebinarRegistration.create({
+        name, email, consentAt: new Date(),
+        role, roleOther: role === 'Other' ? roleOther : '', nationality, phone,
+      });
     }
   } catch (err) {
     console.error('[webinar-register] database write failed', err?.message);
