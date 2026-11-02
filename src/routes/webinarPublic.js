@@ -39,6 +39,8 @@ function publicFields(webinar) {
     supportEmail: webinar.supportEmail,
     organiserName: webinar.organiserName,
     bannerUrl: webinar.bannerUrl,
+    collaborationLine: webinar.collaborationLine,
+    collaborationLogoUrl: webinar.collaborationLogoUrl,
     shareImageUrl: webinar.shareImageUrl,
     speakers: [...(webinar.speakers || [])].sort((a, b) => (a.order || 0) - (b.order || 0)),
     faq: [...(webinar.faq || [])].sort((a, b) => (a.order || 0) - (b.order || 0)),

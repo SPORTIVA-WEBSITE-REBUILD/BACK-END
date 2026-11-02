@@ -137,6 +137,13 @@ export function renderWebinarEmail(webinar, registrant, kind = 'confirmation') {
     social.linkedin ? `<a href="${escapeHtml(social.linkedin)}" style="color:#ffffff;text-decoration:underline;margin:0 6px">LinkedIn</a>` : '',
   ].filter(Boolean).join('');
 
+  // Empty by default — when unset, nothing renders and no gap is left.
+  // Escaped exactly once, here, at render time (same rule as every other
+  // stored field — see htmlToParagraphs.js's header comment for why).
+  const collaborationLineHtml = webinar.collaborationLine
+    ? `<div style="margin:0 0 10px;font-size:12px;font-weight:600;color:${INK_2}">${escapeHtml(webinar.collaborationLine)}</div>`
+    : '';
+
   // The full body is only rendered for the confirmation email; reminders are
   // intentionally short (brief: "a short email with the Meet link, date,
   // time and the calendar link"), reusing the same brand header/footer.
@@ -144,7 +151,8 @@ export function renderWebinarEmail(webinar, registrant, kind = 'confirmation') {
     ? `
       <tr><td style="padding:28px 32px 8px">
         <div style="font-size:13px;color:${ACCENT};font-weight:700">${isReminder && kind === 'reminderDay' ? 'STARTING TOMORROW' : 'STARTING SOON'}</div>
-        <h1 style="margin:6px 0 10px;font-size:22px;line-height:1.3;color:${INK_1};font-family:Roboto,Arial,Helvetica,sans-serif">${escapeHtml(heading)}</h1>
+        <h1 style="margin:6px 0 4px;font-size:22px;line-height:1.3;color:${INK_1};font-family:Roboto,Arial,Helvetica,sans-serif">${escapeHtml(heading)}</h1>
+        ${collaborationLineHtml}
         <p style="margin:0 0 20px;font-size:14px;color:${INK_2};line-height:1.6">Hello ${escapeHtml(registrant.name)}, this is a reminder for <strong>${escapeHtml(title)}</strong> — ${escapeHtml(whenShort)}.</p>
       </td></tr>
       <tr><td style="padding:0 32px 24px" align="center">
@@ -156,7 +164,7 @@ export function renderWebinarEmail(webinar, registrant, kind = 'confirmation') {
       <tr><td style="padding:28px 32px 4px">
         <div style="font-size:14px;font-weight:700;color:${ACCENT}">Hello ${escapeHtml(registrant.name)},</div>
         <h1 style="margin:8px 0 4px;font-size:22px;line-height:1.3;color:${INK_1};font-family:Roboto,Arial,Helvetica,sans-serif">You're registered: ${escapeHtml(title)}</h1>
-        <div style="margin:0 0 10px;font-size:12px;font-weight:600;color:${INK_2}">In Collaboration with Rasheedat Ajibade Foundation</div>
+        ${collaborationLineHtml}
         ${webinar.email?.introParagraph ? `<p style="margin:0 0 20px;font-size:14px;color:${INK_2};line-height:1.6">${escapeHtml(webinar.email.introParagraph)}</p>` : ''}
       </td></tr>
       <tr><td style="padding:0 32px 8px" align="center">

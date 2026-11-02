@@ -70,6 +70,11 @@ const WebinarSchema = new Schema(
     supportEmail: { type: String, trim: true, lowercase: true, default: '' },
     organiserName: { type: String, trim: true, maxlength: 160, default: 'PCN Sportiva LP' },
     bannerUrl: { type: String, trim: true, default: '' },
+    // Optional "In Collaboration with X" line, shown under the title on the
+    // website hero and under the heading in the confirmation/reminder
+    // emails. Empty by default — nothing is shown and no gap is left.
+    collaborationLine: { type: String, trim: true, maxlength: 200, default: '' },
+    collaborationLogoUrl: { type: String, trim: true, default: '' },
     // 1200x630 link-preview image for WhatsApp/LinkedIn/X/Facebook. Falls
     // back to the server-generated one (scripts/generate-share-image.js)
     // until an administrator uploads a replacement via Cloudinary.

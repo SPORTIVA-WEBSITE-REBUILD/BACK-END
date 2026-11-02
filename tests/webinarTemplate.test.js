@@ -50,10 +50,8 @@ describe('webinar confirmation email template', () => {
     }
   });
 
-  it('includes the Rasheedat Ajibade Foundation collaboration line in the confirmation email, not the reminder', () => {
-    expect(html).toContain('In Collaboration with Rasheedat Ajibade Foundation');
-    const { html: reminderHtml } = renderWebinarEmail(baseWebinar, registrant, 'reminderDay');
-    expect(reminderHtml).not.toContain('In Collaboration with Rasheedat Ajibade Foundation');
+  it('omits the collaboration line entirely when collaborationLine is empty', () => {
+    expect(html).not.toContain('In Collaboration');
   });
 
   it('never prints the meet link as visible text only — the plain URL is shown too', () => {
@@ -124,6 +122,31 @@ describe('webinar reminder email', () => {
     expect(html).toContain('Add to calendar');
     expect(html).not.toContain('Frequently asked questions');
     expect(html).not.toContain('Meet your speakers');
+  });
+});
+
+describe('collaborationLine', () => {
+  it('renders in the confirmation email when set, escaped exactly once', () => {
+    const withLine = { ...baseWebinar, collaborationLine: 'In Collaboration with Rasheedat Ajibade Foundation & Partners' };
+    const { html } = renderWebinarEmail(withLine, registrant, 'confirmation');
+    expect(html).toContain('In Collaboration with Rasheedat Ajibade Foundation &amp; Partners');
+    expect(html).not.toContain('&amp;amp;');
+  });
+
+  it('renders in both the day-before and hour-before reminder emails when set', () => {
+    const withLine = { ...baseWebinar, collaborationLine: 'In Collaboration with Rasheedat Ajibade Foundation' };
+    const day = renderWebinarEmail(withLine, registrant, 'reminderDay').html;
+    const hour = renderWebinarEmail(withLine, registrant, 'reminderHour').html;
+    expect(day).toContain('In Collaboration with Rasheedat Ajibade Foundation');
+    expect(hour).toContain('In Collaboration with Rasheedat Ajibade Foundation');
+  });
+
+  it('is absent, with no stray empty element, when collaborationLine is empty — confirmation and both reminders', () => {
+    const empty = { ...baseWebinar, collaborationLine: '' };
+    for (const kind of ['confirmation', 'reminderDay', 'reminderHour']) {
+      const { html } = renderWebinarEmail(empty, registrant, kind);
+      expect(html).not.toContain('In Collaboration');
+    }
   });
 });
 

@@ -69,6 +69,8 @@ export const webinarAdminSchema = z.object({
     .optional().default(''),
   organiserName: z.string().trim().max(160).optional().default('PCN Sportiva LP'),
   bannerUrl: z.string().trim().max(500).optional().default(''),
+  collaborationLine: z.string().trim().max(200).optional().default(''),
+  collaborationLogoUrl: z.string().trim().max(500).optional().default(''),
   shareImageUrl: z.string().trim().max(500).optional().default(''),
   speakers: z.array(speaker).max(20).optional().default([]),
   faq: z.array(faqItem).max(30).optional().default([]),
