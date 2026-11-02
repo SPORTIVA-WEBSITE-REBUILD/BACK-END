@@ -155,7 +155,8 @@ export function renderWebinarEmail(webinar, registrant, kind = 'confirmation') {
     : `
       <tr><td style="padding:28px 32px 4px">
         <div style="font-size:14px;font-weight:700;color:${ACCENT}">Hello ${escapeHtml(registrant.name)},</div>
-        <h1 style="margin:8px 0 10px;font-size:22px;line-height:1.3;color:${INK_1};font-family:Roboto,Arial,Helvetica,sans-serif">You're registered: ${escapeHtml(title)}</h1>
+        <h1 style="margin:8px 0 4px;font-size:22px;line-height:1.3;color:${INK_1};font-family:Roboto,Arial,Helvetica,sans-serif">You're registered: ${escapeHtml(title)}</h1>
+        <div style="margin:0 0 10px;font-size:12px;font-weight:600;color:${INK_2}">In Collaboration with Rasheedat Ajibade Foundation</div>
         ${webinar.email?.introParagraph ? `<p style="margin:0 0 20px;font-size:14px;color:${INK_2};line-height:1.6">${escapeHtml(webinar.email.introParagraph)}</p>` : ''}
       </td></tr>
       <tr><td style="padding:0 32px 8px" align="center">

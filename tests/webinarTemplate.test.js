@@ -50,6 +50,12 @@ describe('webinar confirmation email template', () => {
     }
   });
 
+  it('includes the Rasheedat Ajibade Foundation collaboration line in the confirmation email, not the reminder', () => {
+    expect(html).toContain('In Collaboration with Rasheedat Ajibade Foundation');
+    const { html: reminderHtml } = renderWebinarEmail(baseWebinar, registrant, 'reminderDay');
+    expect(reminderHtml).not.toContain('In Collaboration with Rasheedat Ajibade Foundation');
+  });
+
   it('never prints the meet link as visible text only — the plain URL is shown too', () => {
     expect(html).toContain(baseWebinar.meetUrl);
   });
