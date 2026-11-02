@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderWebinarEmail } from '../src/lib/webinarTemplate.js';
 import { buildWebinarIcs } from '../src/lib/ics.js';
+import { describeMailerError } from '../src/lib/webinarMailer.js';
 
 const baseWebinar = {
   title: 'Promoting Clean Sport: Strengthening Anti-Doping and Integrity Across the Sports Ecosystem.',
@@ -140,5 +141,28 @@ describe('ICS calendar attachment', () => {
 
   it('uses CRLF line endings', () => {
     expect(ics.includes('\r\n')).toBe(true);
+  });
+});
+
+describe('describeMailerError', () => {
+  it('prefers the real error code', () => {
+    expect(describeMailerError({ code: 'EAUTH', command: 'AUTH PLAIN' })).toBe('EAUTH');
+  });
+
+  it('falls back to the failing command when there is no code', () => {
+    expect(describeMailerError({ command: 'EHLO' })).toBe('failed during EHLO');
+  });
+
+  it('falls back to the SMTP response code when there is neither a code nor a command', () => {
+    expect(describeMailerError({ responseCode: 421 })).toBe('SMTP 421');
+  });
+
+  it('recognises a TLS/certificate failure from the message when nothing else is available', () => {
+    expect(describeMailerError({ message: 'unable to verify the first certificate' })).toBe('TLS handshake failed');
+  });
+
+  it('never returns the bare word UNKNOWN', () => {
+    expect(describeMailerError({})).not.toBe('UNKNOWN');
+    expect(describeMailerError(undefined)).not.toBe('UNKNOWN');
   });
 });

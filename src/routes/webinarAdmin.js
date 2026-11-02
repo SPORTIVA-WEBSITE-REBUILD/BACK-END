@@ -10,9 +10,10 @@ import { ok, noStore } from '../lib/respond.js';
 import validate from '../middleware/validate.js';
 import { requireAuth, requirePermission } from '../middleware/auth.js';
 import { webinarAdminSchema, testEmailSchema, sendReminderSchema } from '../validators/webinar.js';
-import { sendWebinarEmail } from '../lib/webinarMailer.js';
+import { sendWebinarEmail, describeMailerError } from '../lib/webinarMailer.js';
 import { isRateLimited } from '../lib/mongoRateLimit.js';
 import { sendReminderBatch } from '../lib/webinarReminders.js';
+import { parseSmtpSecure } from '../lib/smtpSecure.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -76,6 +77,11 @@ function tcpProbe(host, port, timeoutMs) {
  * other secret value — only variable NAMES (present/absent) for those, and
  * the genuinely non-secret values (host, port, secure, the two addresses).
  */
+// The only three variables with no sensible default — see env.js, which
+// already falls back for port (465), fromName, fromAddress and replyTo.
+// EMAIL_DRY_RUN and SMTP_SECURE are genuinely optional, not "missing".
+const REQUIRED_VARS = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'];
+
 router.post('/smtp-check', requirePermission('webinar:write'), asyncHandler(async (req, res) => {
   // Read process.env directly, not the cached env.mail object: env.js
   // captures its values once at module load, which is accurate after a
@@ -84,7 +90,8 @@ router.post('/smtp-check', requirePermission('webinar:write'), asyncHandler(asyn
   // is actually running with, right now.
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT) || 465;
-  const secure = process.env.SMTP_SECURE !== undefined ? process.env.SMTP_SECURE === 'true' : port === 465;
+  const rawSecure = process.env.SMTP_SECURE;
+  const { secure, rule: secureRule } = parseSmtpSecure(rawSecure, port);
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   const fromAddress = process.env.MAIL_FROM_ADDRESS || user;
@@ -109,7 +116,7 @@ router.post('/smtp-check', requirePermission('webinar:write'), asyncHandler(asyn
     } catch (err) {
       verify = {
         ok: false,
-        code: err.code || 'UNKNOWN',
+        code: describeMailerError(err),
         smtpResponseCode: err.responseCode || null,
         command: err.command || null,
         ms: Date.now() - start,
@@ -119,6 +126,18 @@ router.post('/smtp-check', requirePermission('webinar:write'), asyncHandler(asyn
     verify.code = 'MISSING_HOST_OR_CREDENTIALS';
   }
 
+  const namesPresent = {
+    SMTP_HOST: Boolean(process.env.SMTP_HOST),
+    SMTP_PORT: Boolean(process.env.SMTP_PORT),
+    SMTP_SECURE: process.env.SMTP_SECURE !== undefined,
+    SMTP_USER: Boolean(process.env.SMTP_USER),
+    SMTP_PASS: Boolean(process.env.SMTP_PASS),
+    MAIL_FROM_NAME: Boolean(process.env.MAIL_FROM_NAME),
+    MAIL_FROM_ADDRESS: Boolean(process.env.MAIL_FROM_ADDRESS),
+    MAIL_REPLY_TO: Boolean(process.env.MAIL_REPLY_TO),
+    EMAIL_DRY_RUN: Boolean(process.env.EMAIL_DRY_RUN),
+  };
+
   noStore(res);
   return ok(res, {
     tcp,
@@ -126,20 +145,14 @@ router.post('/smtp-check', requirePermission('webinar:write'), asyncHandler(asyn
     config: {
       // Presence only for the things that could be secret-shaped; real
       // values only for what is genuinely safe to show.
-      namesPresent: {
-        SMTP_HOST: Boolean(process.env.SMTP_HOST),
-        SMTP_PORT: Boolean(process.env.SMTP_PORT),
-        SMTP_SECURE: process.env.SMTP_SECURE !== undefined,
-        SMTP_USER: Boolean(process.env.SMTP_USER),
-        SMTP_PASS: Boolean(process.env.SMTP_PASS),
-        MAIL_FROM_NAME: Boolean(process.env.MAIL_FROM_NAME),
-        MAIL_FROM_ADDRESS: Boolean(process.env.MAIL_FROM_ADDRESS),
-        MAIL_REPLY_TO: Boolean(process.env.MAIL_REPLY_TO),
-        EMAIL_DRY_RUN: Boolean(process.env.EMAIL_DRY_RUN),
-      },
+      namesPresent,
+      required: REQUIRED_VARS,
+      missingRequired: REQUIRED_VARS.filter((name) => !namesPresent[name]),
       host: host || null,
       port: port || null,
-      secure: Boolean(secure),
+      secure,
+      secureRaw: rawSecure !== undefined ? rawSecure : null,
+      secureRule,
       user: user || null,
       fromAddress: fromAddress || null,
     },

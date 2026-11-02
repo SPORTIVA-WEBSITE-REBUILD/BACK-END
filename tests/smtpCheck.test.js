@@ -129,6 +129,79 @@ describe('POST /api/admin/webinar/smtp-check', () => {
     expect(JSON.stringify(res.body)).not.toContain('free-text detail');
   });
 
+  it('shows the raw (non-secret) SMTP_SECURE value in quotes and how it was interpreted', async () => {
+    process.env.SMTP_SECURE = '"true"'; // the exact shape the real bug report described
+    vi.doMock('node:net', () => ({
+      default: {
+        Socket: class extends EventEmitter {
+          setTimeout() {}
+          connect() { setTimeout(() => this.emit('connect'), 0); }
+          destroy() {}
+        },
+      },
+    }));
+    vi.doMock('nodemailer', () => ({
+      default: { createTransport: () => ({ verify: () => Promise.resolve(true) }) },
+    }));
+    const agent = await freshAuthedAgent();
+
+    const res = await agent.post('/api/admin/webinar/smtp-check');
+    expect(res.body.data.config.secureRaw).toBe('"true"');
+    expect(res.body.data.config.secure).toBe(true);
+    expect(res.body.data.config.secureRule).toContain('true');
+  });
+
+  it('EMAIL_DRY_RUN and SMTP_SECURE are never reported as missing-required — only SMTP_HOST/USER/PASS are required', async () => {
+    delete process.env.SMTP_SECURE;
+    vi.doMock('node:net', () => ({
+      default: {
+        Socket: class extends EventEmitter {
+          setTimeout() {}
+          connect() { setTimeout(() => this.emit('connect'), 0); }
+          destroy() {}
+        },
+      },
+    }));
+    vi.doMock('nodemailer', () => ({
+      default: { createTransport: () => ({ verify: () => Promise.resolve(true) }) },
+    }));
+    const agent = await freshAuthedAgent();
+
+    const res = await agent.post('/api/admin/webinar/smtp-check');
+    expect(res.body.data.config.required).toEqual(['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS']);
+    expect(res.body.data.config.missingRequired).toEqual([]); // all three present in REAL_SMTP_ENV
+    expect(res.body.data.config.missingRequired).not.toContain('EMAIL_DRY_RUN');
+    expect(res.body.data.config.missingRequired).not.toContain('SMTP_SECURE');
+  });
+
+  it('replaces the old UNKNOWN label with the real failing stage when nodemailer gives no error code', async () => {
+    vi.doMock('node:net', () => ({
+      default: {
+        Socket: class extends EventEmitter {
+          setTimeout() {}
+          connect() { setTimeout(() => this.emit('connect'), 0); }
+          destroy() {}
+        },
+      },
+    }));
+    vi.doMock('nodemailer', () => ({
+      default: {
+        createTransport: () => ({
+          verify: () => {
+            const err = new Error('unexpected server response during greeting');
+            err.command = 'EHLO'; // no err.code at all — the exact case "UNKNOWN" used to hide
+            return Promise.reject(err);
+          },
+        }),
+      },
+    }));
+    const agent = await freshAuthedAgent();
+
+    const res = await agent.post('/api/admin/webinar/smtp-check');
+    expect(res.body.data.verify.code).not.toBe('UNKNOWN');
+    expect(res.body.data.verify.code).toContain('EHLO');
+  });
+
   it('reports MISSING_HOST_OR_CREDENTIALS cleanly when SMTP is not configured at all', async () => {
     delete process.env.SMTP_HOST;
     delete process.env.SMTP_USER;

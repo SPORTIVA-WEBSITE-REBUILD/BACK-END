@@ -4,6 +4,7 @@ import nodemailer from 'nodemailer';
 import env from '../config/env.js';
 import { renderWebinarEmail } from './webinarTemplate.js';
 import { buildWebinarIcs } from './ics.js';
+import { parseSmtpSecure } from './smtpSecure.js';
 
 /**
  * SMTP via Zoho (or any SMTP provider — nothing here is Zoho-specific).
@@ -29,8 +30,30 @@ import { buildWebinarIcs } from './ics.js';
 // Netlify's function time limit.
 export const TIMEOUT_MS = 15000;
 
+/**
+ * A short, safe label for a nodemailer failure — never the free-text
+ * message, which can echo back connection details. Prefers the real error
+ * code; when nodemailer gives none (some TLS and socket failures do not),
+ * falls back to naming the stage that failed from whatever nodemailer did
+ * attach, rather than the bare, meaningless word "UNKNOWN".
+ */
+export function describeMailerError(err) {
+  if (err?.code) return String(err.code);
+  if (err?.command) return `failed during ${err.command}`;
+  if (err?.responseCode) return `SMTP ${err.responseCode}`;
+  if (/certificate|SSL|TLS/i.test(err?.message || '')) return 'TLS handshake failed';
+  return 'unknown error (nodemailer gave no error code)';
+}
+
 export function buildTransport() {
-  const { host, port, secure, user, pass } = env.mail;
+  // host/port/user/pass still come from env.mail (set once at module load,
+  // which is correct after a real cold start); secure is recomputed here
+  // from the live process.env.SMTP_SECURE through parseSmtpSecure — a raw
+  // `=== 'true'` broke the moment that value carried quotes or whitespace,
+  // which is exactly what happened the last time this was checked live.
+  const { host, port, user, pass } = env.mail;
+  const { secure, rule } = parseSmtpSecure(process.env.SMTP_SECURE, port);
+  console.log('[webinar-mail] secure:', rule);
   return nodemailer.createTransport({
     host, port, secure,
     auth: { user, pass },
@@ -104,8 +127,8 @@ export async function sendWebinarEmail({ webinar, registrant, kind = 'confirmati
     // secrets, and — unlike a free-text message — is something smtp-check
     // (webinarAdmin.js) and this same catch block can be compared directly,
     // so a stored emailError and a live diagnostic run mean the same thing.
-    const code = err?.code || err?.responseCode || 'UNKNOWN';
+    const code = describeMailerError(err);
     console.error('[webinar-mail] send failed', code);
-    return { ok: false, error: String(code).slice(0, 60) };
+    return { ok: false, error: code.slice(0, 60) };
   }
 }
