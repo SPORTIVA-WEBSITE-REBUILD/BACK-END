@@ -13,8 +13,10 @@ const baseWebinar = {
   organiserName: 'PCN Sportiva LP',
   bannerUrl: 'https://res.cloudinary.com/demo/banner.jpg',
   speakers: [
-    { name: 'Caroline Mwanzia', role: 'Moderator/Speaker', titleLines: ['Associate, PCN Sportiva LP'], bio: '', order: 1 },
-    { name: 'Martina Spreitzer-Kropiunik', role: 'Speaker', titleLines: ['Court President, Austria'], bio: 'CAS Arbitrator.', order: 2 },
+    // shortBio empty but bio non-empty on purpose: the email must show no bio
+    // text for Caroline at all, never fall back to the long one.
+    { name: 'Caroline Mwanzia', role: 'Moderator/Speaker', titleLines: ['Associate, PCN Sportiva LP'], shortBio: '', bio: 'A full, much longer biography that must never appear in this email.', order: 1 },
+    { name: 'Martina Spreitzer-Kropiunik', role: 'Speaker', titleLines: ['Court President, Austria'], shortBio: 'CAS Arbitrator.', bio: 'A different, longer full bio that should also not appear.', order: 2 },
   ],
   faq: [
     { question: 'What will this cover?', answer: 'An overview of *anti-doping* enforcement.', order: 1 },
@@ -60,6 +62,22 @@ describe('webinar confirmation email template', () => {
 
   it('skips a FAQ item whose answer is empty', () => {
     expect(html).not.toContain('Will there be a recording?');
+  });
+
+  it('uses shortBio only — the full bio must never appear in this email, even when shortBio is empty', () => {
+    expect(html).not.toContain('A full, much longer biography that must never appear in this email.');
+    expect(html).not.toContain('A different, longer full bio that should also not appear.');
+    expect(html).toContain('CAS Arbitrator.'); // Martina's shortBio does show
+  });
+
+  it('decodes a stored HTML entity and escapes it exactly once — a literal & renders as &amp; a single time, not &amp;amp;', () => {
+    const webinarWithEntityInBio = {
+      ...baseWebinar,
+      speakers: [{ name: 'X', role: 'Speaker', titleLines: [], shortBio: 'Sports Management & Legal Skills', bio: '', order: 1 }],
+    };
+    const { html: out } = renderWebinarEmail(webinarWithEntityInBio, registrant, 'confirmation');
+    expect(out).toContain('Sports Management &amp; Legal Skills');
+    expect(out).not.toContain('&amp;amp;');
   });
 
   it('turns *bold phrases* in an FAQ answer into <strong>, safely', () => {

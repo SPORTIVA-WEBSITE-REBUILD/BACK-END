@@ -76,7 +76,12 @@ function speakerBlock(speaker) {
           <div style="font-size:15px;font-weight:700;color:${INK_1}">${escapeHtml(speaker.name)}</div>
           <div style="font-size:12px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:${ACCENT};margin-top:2px">${escapeHtml(speaker.role)}</div>
           ${lines.map((l) => `<div style="font-size:13px;color:${INK_2};margin-top:2px">${escapeHtml(l)}</div>`).join('')}
-          ${speaker.bio ? `<div style="font-size:13px;color:${INK_2};margin-top:6px;line-height:1.5">${escapeHtml(speaker.bio)}</div>` : ''}
+          ${/* shortBio only, never the full bio — if it is empty, no bio text
+                shows for this speaker at all. The full bio is meant for a
+                longer-form view (a future website expander), not this email;
+                falling back to it here was never asked for and would print
+                thousands of characters nobody expected in every send. */ ''}
+          ${speaker.shortBio ? `<div style="font-size:13px;color:${INK_2};margin-top:6px;line-height:1.5">${escapeHtml(speaker.shortBio)}</div>` : ''}
         </td>
       </tr>
     </table>`;
